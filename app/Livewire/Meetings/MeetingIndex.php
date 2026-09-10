@@ -4,6 +4,7 @@ namespace App\Livewire\Meetings;
 
 use App\Livewire\Concerns\WithClubContext;
 use App\Models\Meeting;
+use App\Services\ClubAccessService;
 use App\Services\ClubContextService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -25,14 +26,14 @@ class MeetingIndex extends Component
     public function updatingStatus(): void { $this->resetPage(); }
     public function updatingFilter(): void { $this->resetPage(); }
 
-    public function deleteMeeting(int $meetingId): void
+    public function deleteMeeting(int $meetingId, ClubAccessService $access): void
     {
         $this->authorize('meetings.delete');
-        $club    = $this->getCurrentClub();
+        $user    = auth()->user();
         $meeting = Meeting::findOrFail($meetingId);
 
-        // Security: ensure meeting belongs to current club
-        if ($club && $meeting->club_id !== $club->id) {
+        // Security check
+        if (! $user->isSuperAdmin() && ! $access->validateUserBelongsToClub($user->id, $meeting->club_id)) {
             abort(403);
         }
 
@@ -42,10 +43,14 @@ class MeetingIndex extends Component
 
     public function render(ClubContextService $clubContext)
     {
+        $user = auth()->user();
         $club = $clubContext->currentClub();
 
         $query = Meeting::with('club')
             ->when($club, fn ($q) => $q->forClub($club->id))
+            ->when(! $club && ! $user->isSuperAdmin(), function ($q) use ($user) {
+                $q->whereIn('club_id', $user->clubs->pluck('id'));
+            })
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('theme', 'like', "%{$this->search}%")
                   ->orWhere('meeting_number', 'like', "%{$this->search}%");

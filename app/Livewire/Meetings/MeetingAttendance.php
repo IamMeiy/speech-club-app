@@ -8,7 +8,6 @@ use App\Models\MeetingAttendance as MeetingAttendanceModel;
 use App\Models\MeetingRole;
 use App\Models\User;
 use App\Services\ClubAccessService;
-use App\Services\ClubContextService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -27,11 +26,12 @@ class MeetingAttendance extends Component
     // Role replacement: roleId => replacementUserId
     public array $roleReplacements = [];
 
-    public function mount(Meeting $meeting, ClubContextService $clubContext): void
+    public function mount(Meeting $meeting, ClubAccessService $access): void
     {
-        $club = $clubContext->currentClub();
-        if ($club && $meeting->club_id !== $club->id) {
-            abort(403);
+        $user = auth()->user();
+        // Security: user must belong to meeting's club or be Super Admin
+        if (! $user->isSuperAdmin() && ! $access->validateUserBelongsToClub($user->id, $meeting->club_id)) {
+            abort(403, 'This meeting does not belong to your club.');
         }
 
         $this->meeting = $meeting;
