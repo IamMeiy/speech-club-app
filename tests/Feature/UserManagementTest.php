@@ -82,4 +82,20 @@ class UserManagementTest extends TestCase
         $this->assertTrue($newUser->belongsToClub($this->chera->id));
         $this->assertTrue($newUser->hasRole('Admin'));
     }
+
+    public function test_user_can_update_profile_and_email_remains_unchanged(): void
+    {
+        $this->actingAs($this->cholaPresident);
+
+        Livewire::test(\App\Livewire\Profile\ProfileEdit::class)
+            ->set('name', 'Arun Updated')
+            ->set('phone', '+91 88888 77777')
+            ->call('saveProfile')
+            ->assertHasNoErrors();
+
+        $fresh = $this->cholaPresident->fresh();
+        $this->assertEquals('Arun Updated', $fresh->name);
+        $this->assertEquals('+91 88888 77777', $fresh->phone);
+        $this->assertEquals($this->cholaPresident->email, $fresh->email);
+    }
 }

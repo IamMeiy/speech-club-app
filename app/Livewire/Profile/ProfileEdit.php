@@ -30,13 +30,11 @@ class ProfileEdit extends Component
     {
         $this->validate([
             'name'  => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . auth()->id(),
             'phone' => 'nullable|string|max:20',
         ]);
 
         auth()->user()->update([
             'name'  => $this->name,
-            'email' => $this->email,
             'phone' => $this->phone ?: null,
         ]);
 
