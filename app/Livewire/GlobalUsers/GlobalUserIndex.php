@@ -5,15 +5,22 @@ namespace App\Livewire\GlobalUsers;
 use App\Models\Club;
 use App\Models\User;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Lazy;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+#[Lazy]
 #[Layout('components.layouts.app')]
 #[Title('Global Users')]
 class GlobalUserIndex extends Component
 {
     use WithPagination;
+
+    public function placeholder()
+    {
+        return view('livewire.global-users.global-user-index-skeleton');
+    }
 
     public string $search  = '';
     public string $status  = '';

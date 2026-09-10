@@ -28,7 +28,13 @@
         </select>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    {{-- Skeleton Card Grid during search and filter --}}
+    <div wire:loading.grid wire:target="search, status, previousPage, nextPage, gotoPage" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" style="display: none;">
+        <x-skeleton.club-card :count="6" />
+    </div>
+
+    {{-- Real Data Card Grid --}}
+    <div wire:loading.remove wire:target="search, status, previousPage, nextPage, gotoPage" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         @forelse($clubs as $club)
         <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 hover:shadow-md transition-all flex flex-col justify-between">
             <div>

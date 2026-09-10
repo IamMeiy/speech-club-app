@@ -7,15 +7,23 @@ use App\Models\Meeting;
 use App\Services\ClubAccessService;
 use App\Services\ClubContextService;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Lazy;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+#[Lazy]
 #[Layout('components.layouts.app')]
 #[Title('Meetings')]
 class MeetingIndex extends Component
 {
     use WithPagination, WithClubContext;
+
+    public function placeholder()
+    {
+        $club = $this->getCurrentClub();
+        return view('livewire.meetings.meeting-index-skeleton', compact('club'));
+    }
 
     public string $search  = '';
     public string $status  = '';

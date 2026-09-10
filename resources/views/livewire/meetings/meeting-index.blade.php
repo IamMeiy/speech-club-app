@@ -69,7 +69,14 @@
                         <th class="text-right px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+
+                {{-- Skeleton Loading state during search, filter, and pagination --}}
+                <tbody wire:loading.table-row-group wire:target="search, filter, status, previousPage, nextPage, gotoPage" style="display: none;">
+                    <x-skeleton.meeting-rows :rows="8" :show-club="!$club" />
+                </tbody>
+
+                {{-- Real Data Body --}}
+                <tbody wire:loading.remove wire:target="search, filter, status, previousPage, nextPage, gotoPage" class="divide-y divide-slate-100 dark:divide-slate-800/60">
                     @forelse($meetings as $meeting)
                     <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                         <td class="px-6 py-4">

@@ -6,15 +6,23 @@ use App\Livewire\Concerns\WithClubContext;
 use App\Models\User;
 use App\Services\ClubContextService;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Lazy;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+#[Lazy]
 #[Layout('components.layouts.app')]
 #[Title('Members')]
 class UserIndex extends Component
 {
     use WithPagination, WithClubContext;
+
+    public function placeholder()
+    {
+        $club = $this->getCurrentClub();
+        return view('livewire.users.user-index-skeleton', compact('club'));
+    }
 
     public string $search   = '';
     public string $status   = '';

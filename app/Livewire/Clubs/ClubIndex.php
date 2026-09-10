@@ -4,15 +4,22 @@ namespace App\Livewire\Clubs;
 
 use App\Models\Club;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Lazy;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+#[Lazy]
 #[Layout('components.layouts.app')]
 #[Title('Clubs')]
 class ClubIndex extends Component
 {
     use WithPagination;
+
+    public function placeholder()
+    {
+        return view('livewire.clubs.club-index-skeleton');
+    }
 
     public string $search  = '';
     public string $status  = '';
