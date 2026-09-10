@@ -5,6 +5,7 @@ namespace App\Livewire\Meetings;
 use App\Livewire\Concerns\WithClubContext;
 use App\Models\Meeting;
 use App\Services\ClubAccessService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -25,6 +26,45 @@ class MeetingReport extends Component
         }
 
         $this->meeting = $meeting;
+    }
+
+    public function downloadPdf()
+    {
+        $meeting = $this->meeting->load([
+            'club',
+            'roles.roleType',
+            'roles.user',
+            'speakers.user',
+            'speakers.evaluation.evaluator',
+            'ttmSpeakers.user',
+            'evaluations.speaker.user',
+            'evaluations.evaluator',
+            'attendance.user',
+        ]);
+
+        $stats = [
+            'present' => $meeting->attendance->where('status', 'present')->count(),
+            'absent'  => $meeting->attendance->where('status', 'absent')->count(),
+            'late'    => $meeting->attendance->where('status', 'late')->count(),
+            'excused' => $meeting->attendance->where('status', 'excused')->count(),
+            'total'   => $meeting->attendance->count(),
+        ];
+
+        $pdf = Pdf::loadView('pdf.meeting-report', compact('meeting', 'stats'))
+            ->setPaper('a4', 'portrait')
+            ->setOption(['isRemoteEnabled' => true, 'defaultFont' => 'sans-serif']);
+
+        $fileName = sprintf(
+            'Meeting-%d-Report-%s.pdf',
+            $meeting->meeting_number,
+            $meeting->meeting_date->format('Y-m-d')
+        );
+
+        return response()->streamDownload(
+            fn () => print($pdf->output()),
+            $fileName,
+            ['Content-Type' => 'application/pdf']
+        );
     }
 
     public function render()

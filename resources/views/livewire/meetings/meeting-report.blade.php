@@ -11,10 +11,29 @@
                 <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">Meeting #{{ $meeting->meeting_number }} · {{ $meeting->club->name }}</p>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button onclick="window.print()" class="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-sm flex items-center gap-2">
-                <span>🖨️</span>
-                <span>Print Report</span>
+        <div class="flex items-center gap-2.5">
+            {{-- Print Button --}}
+            <button onclick="window.print()" class="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-[0.98]">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                <span>Print</span>
+            </button>
+
+            {{-- Download PDF Button --}}
+            <button wire:click="downloadPdf" wire:loading.attr="disabled"
+                    class="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-md shadow-primary-600/25 flex items-center gap-2 active:scale-[0.98]">
+                {{-- Normal Download Icon --}}
+                <svg wire:loading.remove wire:target="downloadPdf" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {{-- Spinner on Loading --}}
+                <svg wire:loading wire:target="downloadPdf" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span wire:loading.remove wire:target="downloadPdf">Download PDF</span>
+                <span wire:loading wire:target="downloadPdf">Generating PDF…</span>
             </button>
         </div>
     </div>
