@@ -12,9 +12,9 @@
         href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap"
         rel="stylesheet">
 
-    {{-- Anti-FOUC theme & dark mode loader --}}
+    {{-- Anti-FOUC theme & dark mode loader with Livewire wire:navigate persistence --}}
     <script>
-        (function() {
+        function applySpeechClubTheme() {
             var isDark = localStorage.getItem('theme-dark') === 'true' ||
                 (!('theme-dark' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
             if (isDark) {
@@ -22,11 +22,18 @@
             } else {
                 document.documentElement.classList.remove('dark');
             }
+            var themes = ['indigo', 'emerald', 'blue', 'purple', 'rose', 'amber', 'cyan'];
             var savedTheme = localStorage.getItem('theme-color') || 'indigo';
+            themes.forEach(function(t) {
+                document.documentElement.classList.remove('theme-' + t);
+            });
             if (savedTheme && savedTheme !== 'indigo') {
                 document.documentElement.classList.add('theme-' + savedTheme);
             }
-        })();
+        }
+        applySpeechClubTheme();
+        document.addEventListener('livewire:navigated', applySpeechClubTheme);
+        document.addEventListener('DOMContentLoaded', applySpeechClubTheme);
     </script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -52,22 +59,23 @@
             { id: 'amber', name: 'Amber', hex: '#f59e0b' },
             { id: 'cyan', name: 'Cyan', hex: '#06b6d4' }
         ],
+        init() {
+            this.syncTheme();
+        },
+        syncTheme() {
+            if (typeof applySpeechClubTheme === 'function') {
+                applySpeechClubTheme();
+            }
+        },
         toggleDarkMode() {
             this.darkMode = !this.darkMode;
             localStorage.setItem('theme-dark', this.darkMode);
-            if (this.darkMode) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+            this.syncTheme();
         },
         setTheme(themeId) {
-            this.themes.forEach(t => document.documentElement.classList.remove('theme-' + t.id));
             this.currentTheme = themeId;
             localStorage.setItem('theme-color', themeId);
-            if (themeId !== 'indigo') {
-                document.documentElement.classList.add('theme-' + themeId);
-            }
+            this.syncTheme();
             this.themePickerOpen = false;
         },
         toggleSidebar() {
