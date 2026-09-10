@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             ClubSeeder::class,
             MeetingRoleTypeSeeder::class,
             DemoUsersSeeder::class,
+            RealisticWorkflowSeeder::class,
         ]);
     }
 }
