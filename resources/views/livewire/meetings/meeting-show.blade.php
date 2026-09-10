@@ -1,60 +1,68 @@
-<div class="p-6 lg:p-8 space-y-6">
+<div class="max-w-6xl mx-auto space-y-6">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
         <div class="flex items-center gap-4">
-            <a href="{{ route('meetings.index') }}" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+            <a href="{{ route('meetings.index') }}" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-all">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Meeting #{{ $meeting->meeting_number }}</h1>
-                <p class="text-gray-500 text-sm mt-1">{{ $meeting->club->name }} · {{ $meeting->meeting_date->format('d F Y') }}</p>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Meeting #{{ $meeting->meeting_number }}</h1>
+                    <span class="text-xs font-semibold px-3 py-1 rounded-full {{ $meeting->statusColor() }}">{{ ucfirst($meeting->status) }}</span>
+                </div>
+                <p class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">{{ $meeting->club->name }} · {{ $meeting->meeting_date->format('d F Y') }}</p>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <span class="text-xs font-medium px-3 py-1.5 rounded-full {{ $meeting->statusColor() }}">{{ ucfirst($meeting->status) }}</span>
+        <div class="flex flex-wrap items-center gap-2">
             @can('meetings.update')
             <a href="{{ route('meetings.edit', $meeting) }}"
-               class="px-4 py-2 border border-gray-200 hover:border-gray-300 text-gray-700 text-sm font-medium rounded-xl transition-colors">Edit</a>
+               class="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-sm">
+                Edit
+            </a>
             @endcan
             @can('attendance.manage')
             <a href="{{ route('meetings.attendance', $meeting) }}"
-               class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors">Attendance</a>
+               class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-md shadow-primary-600/20 active:scale-[0.98]">
+                Attendance
+            </a>
             @endcan
             @can('reports.view')
             <a href="{{ route('meetings.report', $meeting) }}"
-               class="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium rounded-xl transition-colors">Report</a>
+               class="px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-sm">
+                Report
+            </a>
             @endcan
         </div>
     </div>
 
     {{-- Meeting Info Card --}}
     @if($meeting->theme || $meeting->venue || $meeting->notes)
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
             @if($meeting->theme)
             <div>
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Theme</p>
-                <p class="text-gray-900 font-medium">{{ $meeting->theme }}</p>
+                <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Theme</p>
+                <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $meeting->theme }}</p>
             </div>
             @endif
             @if($meeting->venue)
             <div>
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Venue</p>
-                <p class="text-gray-900 font-medium">{{ $meeting->venue }}</p>
+                <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Venue</p>
+                <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $meeting->venue }}</p>
             </div>
             @endif
             @if($meeting->creator)
             <div>
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Created By</p>
-                <p class="text-gray-900 font-medium">{{ $meeting->creator->name }}</p>
+                <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Created By</p>
+                <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $meeting->creator->name }}</p>
             </div>
             @endif
         </div>
         @if($meeting->notes)
-        <div class="mt-4 pt-4 border-t border-gray-100">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Notes</p>
-            <p class="text-gray-600 text-sm">{{ $meeting->notes }}</p>
+        <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Notes</p>
+            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{{ $meeting->notes }}</p>
         </div>
         @endif
     </div>
@@ -63,20 +71,20 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {{-- Fixed Meeting Roles --}}
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-4">Meeting Roles</h2>
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Meeting Roles</h2>
             @if($meeting->roles->isEmpty())
-                <p class="text-gray-400 text-sm">No roles assigned yet.</p>
+                <p class="text-slate-400 dark:text-slate-500 text-sm">No roles assigned yet.</p>
             @else
-            <div class="space-y-3">
+            <div class="space-y-3.5">
                 @foreach($meeting->roles->sortBy('roleType.sort_order') as $role)
-                <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <span class="text-sm font-medium text-gray-500 w-36">{{ $role->roleType->name }}</span>
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <span class="text-indigo-600 text-xs font-semibold">{{ strtoupper(substr($role->user->name, 0, 1)) }}</span>
+                <div class="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
+                    <span class="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 w-40">{{ $role->roleType->name }}</span>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-xl bg-primary-50 dark:bg-primary-950/60 border border-primary-100 dark:border-primary-900/40 flex items-center justify-center text-primary-600 dark:text-primary-400 text-xs font-bold">
+                            {{ strtoupper(substr($role->user->name, 0, 1)) }}
                         </div>
-                        <span class="text-sm text-gray-900">{{ $role->user->name }}</span>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">{{ $role->user->name }}</span>
                     </div>
                 </div>
                 @endforeach
@@ -85,23 +93,23 @@
         </div>
 
         {{-- Prepared Speakers --}}
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-4">Prepared Speakers</h2>
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Prepared Speakers</h2>
             @if($meeting->speakers->isEmpty())
-                <p class="text-gray-400 text-sm">No speakers assigned.</p>
+                <p class="text-slate-400 dark:text-slate-500 text-sm">No speakers assigned.</p>
             @else
             <div class="space-y-3">
                 @foreach($meeting->speakers as $speaker)
-                <div class="p-3 bg-gray-50 rounded-xl">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">#{{ $speaker->slot }}</span>
-                        <span class="font-medium text-gray-900 text-sm">{{ $speaker->user->name }}</span>
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xs font-extrabold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-0.5 rounded-full">#{{ $speaker->slot }}</span>
+                        <span class="font-bold text-slate-900 dark:text-white text-sm">{{ $speaker->user->name }}</span>
                     </div>
                     @if($speaker->topic)
-                    <p class="text-xs text-gray-500 mt-1 ml-8">{{ $speaker->topic }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 ml-8">{{ $speaker->topic }}</p>
                     @endif
                     @if($speaker->evaluation)
-                    <p class="text-xs text-green-600 mt-1 ml-8">Evaluator: {{ $speaker->evaluation->evaluator->name }}</p>
+                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1.5 ml-8">Evaluator: {{ $speaker->evaluation->evaluator->name }}</p>
                     @endif
                 </div>
                 @endforeach
@@ -110,18 +118,18 @@
         </div>
 
         {{-- TTM Speakers --}}
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-4">Table Topics Speakers</h2>
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Table Topics Speakers</h2>
             @if($meeting->ttmSpeakers->isEmpty())
-                <p class="text-gray-400 text-sm">No TTM speakers assigned.</p>
+                <p class="text-slate-400 dark:text-slate-500 text-sm">No TTM speakers assigned.</p>
             @else
             <div class="space-y-3">
                 @foreach($meeting->ttmSpeakers as $ttm)
-                <div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                    <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">#{{ $ttm->slot }}</span>
+                <div class="flex items-center gap-3.5 py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
+                    <span class="text-xs font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">#{{ $ttm->slot }}</span>
                     <div>
-                        <p class="text-sm font-medium text-gray-900">{{ $ttm->user->name }}</p>
-                        @if($ttm->topic) <p class="text-xs text-gray-500">{{ $ttm->topic }}</p> @endif
+                        <p class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{{ $ttm->user->name }}</p>
+                        @if($ttm->topic) <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ $ttm->topic }}</p> @endif
                     </div>
                 </div>
                 @endforeach
@@ -130,12 +138,12 @@
         </div>
 
         {{-- Attendance Summary --}}
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-4">Attendance</h2>
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Attendance Overview</h2>
             @if($meeting->attendance->isEmpty())
-                <p class="text-gray-400 text-sm">Attendance not recorded yet.</p>
+                <p class="text-slate-400 dark:text-slate-500 text-sm">Attendance not recorded yet.</p>
                 @can('attendance.manage')
-                <a href="{{ route('meetings.attendance', $meeting) }}" class="mt-3 inline-flex items-center text-sm text-indigo-600 font-medium hover:text-indigo-800">
+                <a href="{{ route('meetings.attendance', $meeting) }}" class="mt-3 inline-flex items-center text-xs sm:text-sm text-primary-600 dark:text-primary-400 font-semibold hover:underline">
                     Record attendance →
                 </a>
                 @endcan
@@ -146,24 +154,24 @@
                 $late    = $meeting->attendance->where('status', 'late')->count();
                 $total   = $meeting->attendance->count();
             @endphp
-            <div class="grid grid-cols-3 gap-4 mb-4">
-                <div class="text-center">
-                    <p class="text-2xl font-bold text-green-600">{{ $present }}</p>
-                    <p class="text-xs text-gray-500">Present</p>
+            <div class="grid grid-cols-3 gap-4 mb-5">
+                <div class="text-center p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl">
+                    <p class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{{ $present }}</p>
+                    <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Present</p>
                 </div>
-                <div class="text-center">
-                    <p class="text-2xl font-bold text-red-500">{{ $absent }}</p>
-                    <p class="text-xs text-gray-500">Absent</p>
+                <div class="text-center p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl">
+                    <p class="text-2xl font-extrabold text-rose-500">{{ $absent }}</p>
+                    <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Absent</p>
                 </div>
-                <div class="text-center">
-                    <p class="text-2xl font-bold text-yellow-500">{{ $late }}</p>
-                    <p class="text-xs text-gray-500">Late</p>
+                <div class="text-center p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl">
+                    <p class="text-2xl font-extrabold text-amber-500">{{ $late }}</p>
+                    <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Late</p>
                 </div>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-2">
-                <div class="bg-green-500 h-2 rounded-full transition-all" style="width: {{ $total > 0 ? ($present / $total * 100) : 0 }}%"></div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: {{ $total > 0 ? ($present / $total * 100) : 0 }}%"></div>
             </div>
-            <p class="text-xs text-gray-400 mt-2">{{ $present }} of {{ $total }} attended</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-2 font-medium">{{ $present }} of {{ $total }} members attended</p>
             @endif
         </div>
 
