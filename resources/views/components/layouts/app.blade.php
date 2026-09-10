@@ -516,6 +516,9 @@
 
     @livewireScripts
 
+    {{-- Custom Alert & Confirm Modal --}}
+    <x-custom-alert-modal />
+
     {{-- Flash Notifications Toast --}}
     <div x-data="{ show: false, message: '', type: 'success' }"
         x-on:flash.window="message = $event.detail.message; type = $event.detail.type ?? 'success'; show = true; setTimeout(() => show = false, 4000)"
