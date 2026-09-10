@@ -150,3 +150,35 @@
 .transition-sidebar {
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Skeleton Shimmer Effect */
+@keyframes shimmerWave {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.animate-shimmer {
+    background: linear-gradient(
+        90deg,
+        rgba(226, 232, 240, 0.5) 0%,
+        rgba(241, 245, 249, 0.9) 50%,
+        rgba(226, 232, 240, 0.5) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmerWave 1.6s ease-in-out infinite;
+}
+
+.dark .animate-shimmer {
+    background: linear-gradient(
+        90deg,
+        rgba(30, 41, 59, 0.6) 0%,
+        rgba(51, 65, 85, 0.85) 50%,
+        rgba(30, 41, 59, 0.6) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmerWave 1.6s ease-in-out infinite;
+}
