@@ -1,0 +1,147 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Meeting extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'club_id',
+        'meeting_number',
+        'meeting_date',
+        'theme',
+        'venue',
+        'status',
+        'notes',
+        'created_by',
+    ];
+
+    protected $casts = [
+        'meeting_date' => 'date',
+    ];
+
+    /**
+     * Club this meeting belongs to.
+     */
+    public function club(): BelongsTo
+    {
+        return $this->belongsTo(Club::class);
+    }
+
+    /**
+     * User who created the meeting.
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Fixed role assignments for this meeting.
+     */
+    public function roles(): HasMany
+    {
+        return $this->hasMany(MeetingRole::class)->with('roleType', 'user');
+    }
+
+    /**
+     * Prepared speakers for this meeting.
+     */
+    public function speakers(): HasMany
+    {
+        return $this->hasMany(MeetingSpeaker::class)->orderBy('slot');
+    }
+
+    /**
+     * TTM speakers for this meeting.
+     */
+    public function ttmSpeakers(): HasMany
+    {
+        return $this->hasMany(MeetingTtmSpeaker::class)->orderBy('slot');
+    }
+
+    /**
+     * Evaluations for this meeting.
+     */
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(MeetingEvaluation::class)->with('speaker.user', 'evaluator');
+    }
+
+    /**
+     * Attendance records for this meeting.
+     */
+    public function attendance(): HasMany
+    {
+        return $this->hasMany(MeetingAttendance::class)->with('user');
+    }
+
+    /**
+     * Status display labels.
+     */
+    public static function statuses(): array
+    {
+        return [
+            'draft'     => 'Draft',
+            'scheduled' => 'Scheduled',
+            'completed' => 'Completed',
+            'cancelled' => 'Cancelled',
+        ];
+    }
+
+    /**
+     * Status color classes for UI badges.
+     */
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'draft'     => 'bg-gray-100 text-gray-700',
+            'scheduled' => 'bg-blue-100 text-blue-700',
+            'completed' => 'bg-green-100 text-green-700',
+            'cancelled' => 'bg-red-100 text-red-700',
+            default     => 'bg-gray-100 text-gray-700',
+        };
+    }
+
+    /**
+     * Check if meeting is upcoming.
+     */
+    public function isUpcoming(): bool
+    {
+        return in_array($this->status, ['draft', 'scheduled'])
+            && $this->meeting_date >= now()->toDateString();
+    }
+
+    /**
+     * Scope: meetings for a specific club.
+     */
+    public function scopeForClub($query, int $clubId)
+    {
+        return $query->where('club_id', $clubId);
+    }
+
+    /**
+     * Scope: upcoming meetings.
+     */
+    public function scopeUpcoming($query)
+    {
+        return $query->whereIn('status', ['draft', 'scheduled'])
+            ->where('meeting_date', '>=', now()->toDateString())
+            ->orderBy('meeting_date');
+    }
+
+    /**
+     * Scope: past completed meetings.
+     */
+    public function scopePast($query)
+    {
+        return $query->where('status', 'completed')
+            ->orderByDesc('meeting_date');
+    }
+}
