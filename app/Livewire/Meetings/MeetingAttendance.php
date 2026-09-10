@@ -66,23 +66,27 @@ class MeetingAttendance extends Component
         $this->dispatch('flash', message: 'Attendance saved successfully.', type: 'success');
     }
 
-    public function replaceRole(int $meetingRoleId, ClubAccessService $access): void
+    public function replaceRole(int $meetingRoleId, ?int $replacementUserId = null, ?ClubAccessService $access = null): void
     {
+        $access = $access ?? app(ClubAccessService::class);
         $this->authorize('meeting-roles.manage');
 
-        $replacementUserId = $this->roleReplacements[$meetingRoleId] ?? null;
+        $replacementUserId = $replacementUserId ?? ($this->roleReplacements[$meetingRoleId] ?? null);
 
         if (! $replacementUserId) {
             return;
         }
 
         // Validate replacement user belongs to the meeting's club
-        if (! $access->validateUserBelongsToClub($replacementUserId, $this->meeting->club_id)) {
+        if (! $access->validateUserBelongsToClub((int) $replacementUserId, $this->meeting->club_id)) {
             $this->addError('roleReplacements.' . $meetingRoleId, 'Selected member does not belong to this club.');
             return;
         }
 
         MeetingRole::where('id', $meetingRoleId)->update(['user_id' => $replacementUserId]);
+
+        // Clear replacement selection from state if present
+        unset($this->roleReplacements[$meetingRoleId]);
 
         // Reload meeting
         $this->meeting->refresh();
