@@ -8,14 +8,29 @@
             </a>
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">Add Member</h1>
-                @if($club)
-                <p class="text-gray-500 text-sm mt-1">Adding to <span class="font-medium text-indigo-600">{{ $club->name }}</span></p>
+                @if(!$isGlobal && $currentClub)
+                <p class="text-gray-500 text-sm mt-1">Adding to <span class="font-medium text-indigo-600">{{ $currentClub->name }}</span></p>
                 @endif
             </div>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
             <form wire:submit="save" class="space-y-5">
+
+                {{-- Club Selection for Global Users (Admin / Super Admin) --}}
+                @if($isGlobal)
+                <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4">
+                    <label class="block text-sm font-semibold text-indigo-950 mb-1.5" for="member-club">Assign to Club <span class="text-red-500">*</span></label>
+                    <p class="text-xs text-indigo-700/80 mb-2.5">Select the club this member belongs to.</p>
+                    <select wire:model="selectedClubId" id="member-club"
+                            class="w-full px-4 py-2 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        @foreach($accessibleClubs as $club)
+                            <option value="{{ $club->id }}">{{ $club->name }} ({{ $club->code }})</option>
+                        @endforeach
+                    </select>
+                    @error('selectedClubId') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                </div>
+                @endif
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-name">Full Name</label>
@@ -43,7 +58,6 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-role">Club Role</label>
                         <select wire:model="role" id="member-role"
                                 class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('role') border-red-300 @enderror">
-                            <option value="">Select role…</option>
                             @foreach($clubRoles as $r)
                                 <option value="{{ $r }}">{{ $r }}</option>
                             @endforeach

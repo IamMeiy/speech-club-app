@@ -23,6 +23,8 @@ class MeetingTest extends TestCase
     protected User $cholaMember1;
     protected User $cholaMember2;
     protected User $cheraMember;
+    protected User $superAdmin;
+    protected User $globalAdmin;
 
     protected function setUp(): void
     {
@@ -51,6 +53,15 @@ class MeetingTest extends TestCase
         $this->cheraMember = User::factory()->create(['name' => 'Ravi', 'status' => 'active']);
         $this->cheraMember->clubs()->attach($this->chera->id);
         $this->cheraMember->assignRole('Member');
+
+        // Super Admin
+        $this->superAdmin = User::factory()->create(['name' => 'Super Admin', 'status' => 'active']);
+        $this->superAdmin->assignRole('Super Admin');
+
+        // Global Admin (assigned to Chola & Chera)
+        $this->globalAdmin = User::factory()->create(['name' => 'Global Admin', 'status' => 'active']);
+        $this->globalAdmin->assignRole('Admin');
+        $this->globalAdmin->clubs()->attach([$this->chola->id, $this->chera->id]);
     }
 
     public function test_club_user_creates_meeting_for_own_club_automatically(): void
@@ -81,6 +92,69 @@ class MeetingTest extends TestCase
         $this->assertCount(1, $meeting->speakers);
         $this->assertEquals($this->cholaMember1->id, $meeting->roles->first()->user_id);
         $this->assertEquals($this->cholaMember2->id, $meeting->speakers->first()->user_id);
+    }
+
+    public function test_super_admin_can_create_meeting_for_any_club(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        Livewire::test(\App\Livewire\Meetings\MeetingCreate::class)
+            ->set('selectedClubId', $this->chera->id)
+            ->set('meeting_number', '1')
+            ->set('meeting_date', '2026-10-20')
+            ->set('theme', 'Global Excellence')
+            ->set('speakers.0.user_id', $this->cheraMember->id)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('meetings', [
+            'club_id'        => $this->chera->id,
+            'meeting_number' => 1,
+            'theme'          => 'Global Excellence',
+        ]);
+    }
+
+    public function test_global_admin_can_create_meeting_for_assigned_club(): void
+    {
+        $this->actingAs($this->globalAdmin);
+
+        Livewire::test(\App\Livewire\Meetings\MeetingCreate::class)
+            ->set('selectedClubId', $this->chola->id)
+            ->set('meeting_number', '1')
+            ->set('meeting_date', '2026-10-22')
+            ->set('theme', 'Admin Leadership')
+            ->set('speakers.0.user_id', $this->cholaMember1->id)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('meetings', [
+            'club_id'        => $this->chola->id,
+            'meeting_number' => 1,
+            'theme'          => 'Admin Leadership',
+        ]);
+    }
+
+    public function test_global_admin_can_edit_meetings_across_assigned_clubs(): void
+    {
+        $cheraMeeting = Meeting::create([
+            'club_id'        => $this->chera->id,
+            'meeting_number' => 1,
+            'meeting_date'   => now()->addDays(5),
+            'status'         => 'scheduled',
+            'created_by'     => $this->globalAdmin->id,
+        ]);
+
+        $this->actingAs($this->globalAdmin);
+
+        Livewire::test(\App\Livewire\Meetings\MeetingEdit::class, ['meeting' => $cheraMeeting])
+            ->set('theme', 'Updated Chera Theme')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('meetings', [
+            'id'    => $cheraMeeting->id,
+            'theme' => 'Updated Chera Theme',
+        ]);
     }
 
     public function test_cannot_assign_cross_club_member_to_meeting(): void
@@ -137,5 +211,33 @@ class MeetingTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertEquals($this->cholaMember2->id, $meetingRole->fresh()->user_id);
+    }
+
+    public function test_changing_club_in_meeting_create_updates_members_list_and_resets_selections(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $component = Livewire::test(\App\Livewire\Meetings\MeetingCreate::class)
+            ->set('selectedClubId', $this->chola->id);
+
+        // Verify Chola members are loaded
+        $membersChola = $component->get('membersList');
+        $this->assertContains((string) $this->cholaMember1->id, array_column($membersChola, 'id'));
+        $this->assertNotContains((string) $this->cheraMember->id, array_column($membersChola, 'id'));
+
+        // Assign a Chola member as speaker
+        $component->set('speakers.0.user_id', (string) $this->cholaMember1->id);
+
+        // Now switch club to Chera
+        $component->set('selectedClubId', $this->chera->id);
+
+        // Verify Chera members are loaded and Chola members are gone
+        $membersChera = $component->get('membersList');
+        $this->assertContains((string) $this->cheraMember->id, array_column($membersChera, 'id'));
+        $this->assertNotContains((string) $this->cholaMember1->id, array_column($membersChera, 'id'));
+
+        // Verify speaker user_id was reset
+        $speakers = $component->get('speakers');
+        $this->assertEquals('', $speakers[0]['user_id']);
     }
 }

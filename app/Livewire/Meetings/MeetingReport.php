@@ -4,7 +4,7 @@ namespace App\Livewire\Meetings;
 
 use App\Livewire\Concerns\WithClubContext;
 use App\Models\Meeting;
-use App\Services\ClubContextService;
+use App\Services\ClubAccessService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -17,11 +17,11 @@ class MeetingReport extends Component
 
     public Meeting $meeting;
 
-    public function mount(Meeting $meeting, ClubContextService $clubContext): void
+    public function mount(Meeting $meeting, ClubAccessService $access): void
     {
-        $club = $clubContext->currentClub();
-        if ($club && $meeting->club_id !== $club->id && ! auth()->user()->isSuperAdmin()) {
-            abort(403);
+        $user = auth()->user();
+        if (! $user->isSuperAdmin() && ! $access->validateUserBelongsToClub($user->id, $meeting->club_id)) {
+            abort(403, 'This report does not belong to your club.');
         }
 
         $this->meeting = $meeting;

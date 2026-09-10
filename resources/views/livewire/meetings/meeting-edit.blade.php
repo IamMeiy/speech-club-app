@@ -1,8 +1,33 @@
-@php
-// meeting-edit.blade.php reuses the same structure as meeting-create, just with pre-filled data
-@endphp
-
-<div class="p-6 lg:p-8">
+<div class="p-6 lg:p-8" x-data="{
+    speakers: $wire.entangle('speakers'),
+    ttmSpeakers: $wire.entangle('ttmSpeakers'),
+    evaluations: $wire.entangle('evaluations'),
+    members: $wire.entangle('membersList'),
+    addSpeaker() {
+        this.speakers.push({ user_id: '', topic: '', speech_type: '', project: '', duration: '' });
+    },
+    removeSpeaker(index) {
+        if (this.speakers.length > 1) {
+            this.speakers.splice(index, 1);
+        }
+    },
+    addTtmSpeaker() {
+        this.ttmSpeakers.push({ user_id: '', topic: '', duration: '' });
+    },
+    removeTtmSpeaker(index) {
+        if (this.ttmSpeakers.length > 1) {
+            this.ttmSpeakers.splice(index, 1);
+        }
+    },
+    addEvaluation() {
+        this.evaluations.push({ speaker_index: 0, evaluator_user_id: '' });
+    },
+    removeEvaluation(index) {
+        if (this.evaluations.length > 1) {
+            this.evaluations.splice(index, 1);
+        }
+    }
+}">
     <div class="max-w-4xl mx-auto">
 
         <div class="flex items-center gap-4 mb-8">
@@ -84,112 +109,145 @@
                 </div>
             </div>
 
-            {{-- Prepared Speakers --}}
+            {{-- Prepared Speakers (100% Client-Side Alpine.js) --}}
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h2 class="text-base font-semibold text-gray-900 mb-5 pb-3 border-b border-gray-100">Prepared Speakers</h2>
                 <div class="space-y-4">
-                    @foreach($speakers as $index => $speaker)
-                    <div class="flex gap-3 items-start p-4 bg-gray-50 rounded-xl">
-                        <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span class="text-indigo-600 text-xs font-bold">{{ $index + 1 }}</span>
-                        </div>
-                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <select wire:model="speakers.{{ $index }}.user_id" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                    <option value="">— Select Member —</option>
-                                    @foreach($members as $member)
-                                        <option value="{{ $member->id }}">{{ $member->name }}</option>
-                                    @endforeach
-                                </select>
+                    <template x-for="(speaker, index) in speakers" :key="index">
+                        <div class="flex gap-3 items-start p-4 bg-gray-50 rounded-xl">
+                            <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span class="text-indigo-600 text-xs font-bold" x-text="index + 1"></span>
                             </div>
-                            <div>
-                                <input wire:model="speakers.{{ $index }}.topic" type="text" placeholder="Topic" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Speaker</label>
+                                    <select x-model="speaker.user_id"
+                                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                        <option value="">— Select Member —</option>
+                                        <template x-for="m in members" :key="m.id">
+                                            <option :value="m.id" x-text="m.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Topic</label>
+                                    <input x-model="speaker.topic" type="text" placeholder="Speech topic"
+                                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Speech Type</label>
+                                    <input x-model="speaker.speech_type" type="text" placeholder="e.g. Prepared, Ice Breaker"
+                                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Duration</label>
+                                    <input x-model="speaker.duration" type="text" placeholder="e.g. 5-7 min"
+                                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                </div>
                             </div>
+                            <button x-show="speakers.length > 1" type="button" @click="removeSpeaker(index)"
+                                    class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 mt-0.5" title="Remove speaker">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
                         </div>
-                        @if(count($speakers) > 1)
-                        <button type="button" wire:click="removeSpeaker({{ $index }})" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                        @endif
-                    </div>
-                    @endforeach
+                    </template>
                 </div>
-                <button type="button" wire:click="addSpeaker" class="mt-4 flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                <button type="button" @click="addSpeaker()"
+                        class="mt-4 flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Add Speaker
                 </button>
             </div>
 
-            {{-- TTM Speakers --}}
+            {{-- TTM Speakers (100% Client-Side Alpine.js) --}}
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h2 class="text-base font-semibold text-gray-900 mb-5 pb-3 border-b border-gray-100">TTM Speakers</h2>
                 <div class="space-y-4">
-                    @foreach($ttmSpeakers as $index => $ttm)
-                    <div class="flex gap-3 items-start p-4 bg-gray-50 rounded-xl">
-                        <div class="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span class="text-purple-600 text-xs font-bold">{{ $index + 1 }}</span>
+                    <template x-for="(ttm, index) in ttmSpeakers" :key="index">
+                        <div class="flex gap-3 items-start p-4 bg-gray-50 rounded-xl">
+                            <div class="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span class="text-purple-600 text-xs font-bold" x-text="index + 1"></span>
+                            </div>
+                            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">TTM Speaker</label>
+                                    <select x-model="ttm.user_id"
+                                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                        <option value="">— Select Member —</option>
+                                        <template x-for="m in members" :key="m.id">
+                                            <option :value="m.id" x-text="m.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Topic</label>
+                                    <input x-model="ttm.topic" type="text" placeholder="TTM topic"
+                                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                </div>
+                            </div>
+                            <button x-show="ttmSpeakers.length > 1" type="button" @click="removeTtmSpeaker(index)"
+                                    class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 mt-0.5" title="Remove TTM speaker">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
                         </div>
-                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <select wire:model="ttmSpeakers.{{ $index }}.user_id" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                <option value="">— Select Member —</option>
-                                @foreach($members as $member)
-                                    <option value="{{ $member->id }}">{{ $member->name }}</option>
-                                @endforeach
-                            </select>
-                            <input wire:model="ttmSpeakers.{{ $index }}.topic" type="text" placeholder="Topic" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                        </div>
-                        @if(count($ttmSpeakers) > 1)
-                        <button type="button" wire:click="removeTtmSpeaker({{ $index }})" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                        @endif
-                    </div>
-                    @endforeach
+                    </template>
                 </div>
-                <button type="button" wire:click="addTtmSpeaker" class="mt-4 flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 font-medium">
+                <button type="button" @click="addTtmSpeaker()"
+                        class="mt-4 flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Add TTM Speaker
                 </button>
             </div>
 
-            {{-- Evaluations --}}
+            {{-- Evaluators (100% Client-Side Alpine.js) --}}
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h2 class="text-base font-semibold text-gray-900 mb-5 pb-3 border-b border-gray-100">Evaluators</h2>
                 <div class="space-y-4">
-                    @foreach($evaluations as $index => $evaluation)
-                    <div class="flex gap-3 items-center p-4 bg-gray-50 rounded-xl">
-                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <select wire:model="evaluations.{{ $index }}.speaker_index" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                @foreach($speakers as $si => $s)
-                                    <option value="{{ $si }}">Speaker {{ $si + 1 }}</option>
-                                @endforeach
-                            </select>
-                            <select wire:model="evaluations.{{ $index }}.evaluator_user_id" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                <option value="">— Evaluator —</option>
-                                @foreach($members as $member)
-                                    <option value="{{ $member->id }}">{{ $member->name }}</option>
-                                @endforeach
-                            </select>
+                    <template x-for="(evalItem, index) in evaluations" :key="index">
+                        <div class="flex gap-3 items-center p-4 bg-gray-50 rounded-xl">
+                            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Speaker Being Evaluated</label>
+                                    <select x-model="evalItem.speaker_index"
+                                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                        <template x-for="(sp, si) in speakers" :key="si">
+                                            <option :value="si" x-text="'Speaker ' + (si + 1)"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Evaluator</label>
+                                    <select x-model="evalItem.evaluator_user_id"
+                                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                        <option value="">— Select Evaluator —</option>
+                                        <template x-for="m in members" :key="m.id">
+                                            <option :value="m.id" x-text="m.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                            <button x-show="evaluations.length > 1" type="button" @click="removeEvaluation(index)"
+                                    class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0" title="Remove evaluation">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
                         </div>
-                        @if(count($evaluations) > 1)
-                        <button type="button" wire:click="removeEvaluation({{ $index }})" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                        @endif
-                    </div>
-                    @endforeach
+                    </template>
                 </div>
-                <button type="button" wire:click="addEvaluation" class="mt-4 flex items-center gap-2 text-sm text-green-600 hover:text-green-800 font-medium">
+                <button type="button" @click="addEvaluation()"
+                        class="mt-4 flex items-center gap-2 text-sm text-green-600 hover:text-green-800 font-medium transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Add Evaluation
                 </button>
             </div>
 
             <div class="flex items-center justify-end gap-3">
-                <a href="{{ route('meetings.show', $meeting) }}" class="px-5 py-2.5 text-sm text-gray-600 hover:text-gray-900 font-medium">Cancel</a>
+                <a href="{{ route('meetings.show', $meeting) }}" class="px-5 py-2.5 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors">Cancel</a>
                 <button type="submit" wire:loading.attr="disabled" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm disabled:opacity-60">
                     <span wire:loading.remove>Save Changes</span>
-                    <span wire:loading>Saving…</span>
+                    <span wire:loading class="flex items-center gap-2">
+                        <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Saving…
+                    </span>
                 </button>
             </div>
 

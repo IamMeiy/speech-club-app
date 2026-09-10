@@ -19,6 +19,7 @@ class ClubIndex extends Component
     public int    $perPage = 15;
 
     public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingStatus(): void { $this->resetPage(); }
 
     public function deleteClub(int $clubId): void
     {
@@ -29,7 +30,12 @@ class ClubIndex extends Component
 
     public function render()
     {
+        $user = auth()->user();
+
         $clubs = Club::withCount('users')
+            ->when(! $user->isSuperAdmin(), function ($q) use ($user) {
+                $q->whereHas('users', fn ($u) => $u->where('users.id', $user->id));
+            })
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', "%{$this->search}%")
                   ->orWhere('code', 'like', "%{$this->search}%");

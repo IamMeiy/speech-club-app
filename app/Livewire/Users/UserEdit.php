@@ -4,9 +4,8 @@ namespace App\Livewire\Users;
 
 use App\Livewire\Concerns\WithClubContext;
 use App\Models\User;
-use App\Services\ClubContextService;
+use App\Services\ClubAccessService;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Rule;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -25,19 +24,28 @@ class UserEdit extends Component
     public string $status = 'active';
     public string $password = '';
 
-    public function mount(User $user, ClubContextService $clubContext): void
+    public function mount(User $user, ClubAccessService $access): void
     {
-        // Security: ensure user belongs to current club
-        $club = $clubContext->currentClub();
-        if ($club && ! $user->belongsToClub($club->id)) {
-            abort(403, 'This member does not belong to your club.');
+        $currentUser = auth()->user();
+
+        if ($currentUser->isClubUser()) {
+            $club = $currentUser->primaryClub();
+            if ($club && ! $user->belongsToClub($club->id)) {
+                abort(403, 'This member does not belong to your club.');
+            }
+        } elseif (! $currentUser->isSuperAdmin()) {
+            // Global user: must share at least one assigned club
+            $commonClubs = $currentUser->clubs()->whereIn('clubs.id', $user->clubs->pluck('id'))->exists();
+            if (! $commonClubs) {
+                abort(403, 'You do not have permission to edit this member.');
+            }
         }
 
         $this->user   = $user;
         $this->name   = $user->name;
         $this->email  = $user->email;
         $this->phone  = $user->phone ?? '';
-        $this->role   = $user->roles->first()?->name ?? '';
+        $this->role   = $user->roles->first()?->name ?? 'Member';
         $this->status = $user->status;
     }
 

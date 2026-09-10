@@ -29,12 +29,19 @@ class UserIndex extends Component
     {
         $this->authorize('users.delete');
 
-        $club = $this->getCurrentClub();
-        $user = User::findOrFail($userId);
+        $currentUser = auth()->user();
+        $user        = User::findOrFail($userId);
 
-        // Ensure user belongs to current club (security check)
-        if ($club && ! $user->belongsToClub($club->id)) {
-            abort(403);
+        if ($currentUser->isClubUser()) {
+            $club = $currentUser->primaryClub();
+            if ($club && ! $user->belongsToClub($club->id)) {
+                abort(403);
+            }
+        } elseif (! $currentUser->isSuperAdmin()) {
+            $commonClubs = $currentUser->clubs()->whereIn('clubs.id', $user->clubs->pluck('id'))->exists();
+            if (! $commonClubs) {
+                abort(403);
+            }
         }
 
         $user->delete();
@@ -44,10 +51,14 @@ class UserIndex extends Component
 
     public function render(ClubContextService $clubContext)
     {
+        $user = auth()->user();
         $club = $clubContext->currentClub();
 
         $query = User::with('roles', 'clubs')
             ->when($club, fn ($q) => $q->inClub($club->id))
+            ->when(! $club && ! $user->isSuperAdmin(), function ($q) use ($user) {
+                $q->whereHas('clubs', fn ($c) => $c->whereIn('clubs.id', $user->clubs->pluck('id')));
+            })
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', "%{$this->search}%")
                   ->orWhere('email', 'like', "%{$this->search}%");

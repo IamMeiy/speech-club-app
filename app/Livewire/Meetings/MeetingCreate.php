@@ -3,6 +3,7 @@
 namespace App\Livewire\Meetings;
 
 use App\Livewire\Concerns\WithClubContext;
+use App\Models\Club;
 use App\Models\Meeting;
 use App\Models\MeetingEvaluation;
 use App\Models\MeetingRole;
@@ -22,6 +23,8 @@ class MeetingCreate extends Component
 {
     use WithClubContext;
 
+    public ?int $selectedClubId = null;
+
     // Meeting information
     public string $meeting_date   = '';
     public string $meeting_number = '';
@@ -33,104 +36,105 @@ class MeetingCreate extends Component
     // Fixed role assignments: keyed by meeting_role_type_id
     public array $roleAssignments = [];
 
-    // Dynamic speakers (each: ['user_id' => '', 'topic' => '', 'speech_type' => '', 'project' => '', 'duration' => ''])
+    // Dynamic speakers
     public array $speakers = [
         ['user_id' => '', 'topic' => '', 'speech_type' => '', 'project' => '', 'duration' => ''],
     ];
 
-    // TTM speakers (each: ['user_id' => '', 'topic' => '', 'duration' => ''])
+    // Dynamic TTM speakers
     public array $ttmSpeakers = [
         ['user_id' => '', 'topic' => '', 'duration' => ''],
     ];
 
-    // Evaluations (each: ['speaker_index' => 0, 'evaluator_user_id' => ''])
+    // Dynamic Evaluations
     public array $evaluations = [
         ['speaker_index' => 0, 'evaluator_user_id' => ''],
     ];
 
-    public function mount(ClubContextService $clubContext): void
+    // Members of currently selected club for reactive Alpine binding
+    public array $membersList = [];
+
+    public function mount(ClubContextService $clubContext, ClubAccessService $access): void
     {
-        $club = $clubContext->currentClub();
-        if (! $club) {
-            // Global user with no club selected
-            session()->flash('error', 'Please select a club before creating a meeting.');
-            $this->redirect(route('dashboard'));
-            return;
+        $user = auth()->user();
+
+        if ($user->isClubUser()) {
+            $club = $user->primaryClub();
+            $this->selectedClubId = $club?->id;
+        } else {
+            // Global user / Super Admin
+            $currentClub = $clubContext->currentClub();
+            if ($currentClub) {
+                $this->selectedClubId = $currentClub->id;
+            } else {
+                $accessible = $access->getAccessibleClubs($user);
+                $this->selectedClubId = $accessible->first()?->id;
+            }
         }
 
-        // Auto-suggest next meeting number
-        $this->meeting_number = (string) $club->nextMeetingNumber();
-        $this->meeting_date   = now()->addDays(7)->format('Y-m-d');
+        $this->updateClubData();
+    }
 
-        // Initialize roleAssignments array keyed by role type ID
+    public function updatedSelectedClubId(): void
+    {
+        // Reset role assignments and dynamic speaker/evaluator selections when club changes
+        $this->roleAssignments = [];
+        foreach ($this->speakers as $i => $s) {
+            $this->speakers[$i]['user_id'] = '';
+        }
+        foreach ($this->ttmSpeakers as $i => $t) {
+            $this->ttmSpeakers[$i]['user_id'] = '';
+        }
+        foreach ($this->evaluations as $i => $e) {
+            $this->evaluations[$i]['evaluator_user_id'] = '';
+        }
+
+        $this->updateClubData();
+    }
+
+    public function updateClubData(): void
+    {
+        $activeClubId = auth()->user()->isClubUser() ? auth()->user()->primaryClub()?->id : $this->selectedClubId;
+        $currentClub  = $activeClubId ? Club::find($activeClubId) : null;
+
+        if ($currentClub) {
+            $this->meeting_number = (string) $currentClub->nextMeetingNumber();
+            $this->meeting_date   = now()->addDays(7)->format('Y-m-d');
+            $this->membersList    = User::inClub($currentClub->id)
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($u) => ['id' => (string) $u->id, 'name' => $u->name])
+                ->toArray();
+        } else {
+            $this->membersList = [];
+        }
+
         $roleTypes = MeetingRoleType::active()->get();
         foreach ($roleTypes as $roleType) {
-            $this->roleAssignments[$roleType->id] = '';
+            if (! isset($this->roleAssignments[$roleType->id])) {
+                $this->roleAssignments[$roleType->id] = '';
+            }
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Speakers management
-    // -----------------------------------------------------------------------
-
-    public function addSpeaker(): void
-    {
-        $this->speakers[] = ['user_id' => '', 'topic' => '', 'speech_type' => '', 'project' => '', 'duration' => ''];
-    }
-
-    public function removeSpeaker(int $index): void
-    {
-        if (count($this->speakers) > 1) {
-            array_splice($this->speakers, $index, 1);
-            $this->speakers = array_values($this->speakers);
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // TTM speakers management
-    // -----------------------------------------------------------------------
-
-    public function addTtmSpeaker(): void
-    {
-        $this->ttmSpeakers[] = ['user_id' => '', 'topic' => '', 'duration' => ''];
-    }
-
-    public function removeTtmSpeaker(int $index): void
-    {
-        if (count($this->ttmSpeakers) > 1) {
-            array_splice($this->ttmSpeakers, $index, 1);
-            $this->ttmSpeakers = array_values($this->ttmSpeakers);
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Evaluations management
-    // -----------------------------------------------------------------------
-
-    public function addEvaluation(): void
-    {
-        $this->evaluations[] = ['speaker_index' => 0, 'evaluator_user_id' => ''];
-    }
-
-    public function removeEvaluation(int $index): void
-    {
-        if (count($this->evaluations) > 1) {
-            array_splice($this->evaluations, $index, 1);
-            $this->evaluations = array_values($this->evaluations);
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Save
-    // -----------------------------------------------------------------------
-
-    public function save(ClubContextService $clubContext, ClubAccessService $access): void
+    public function save(ClubAccessService $access): void
     {
         $this->authorize('meetings.create');
 
-        $club = $clubContext->currentClub();
-        if (! $club) {
-            abort(403, 'No club context.');
+        $user = auth()->user();
+        $clubId = $user->isClubUser() ? $user->primaryClub()?->id : $this->selectedClubId;
+
+        if (! $clubId) {
+            $this->addError('selectedClubId', 'Please select a club before creating a meeting.');
+            return;
+        }
+
+        $club = Club::findOrFail($clubId);
+
+        // Security: verify user has access to this club
+        if (! $user->isSuperAdmin() && ! $access->validateUserBelongsToClub($user->id, $club->id)) {
+            abort(403, 'You do not have permission to create meetings for this club.');
         }
 
         $this->validate([
@@ -171,37 +175,37 @@ class MeetingCreate extends Component
         foreach ($this->roleAssignments as $roleTypeId => $userId) {
             if ($userId) {
                 MeetingRole::create([
-                    'meeting_id'          => $meeting->id,
+                    'meeting_id'           => $meeting->id,
                     'meeting_role_type_id' => $roleTypeId,
-                    'user_id'             => $userId,
+                    'user_id'              => $userId,
                 ]);
             }
         }
 
         // Save prepared speakers
         foreach ($this->speakers as $slot => $speakerData) {
-            if ($speakerData['user_id']) {
+            if (! empty($speakerData['user_id'])) {
                 MeetingSpeaker::create([
                     'meeting_id'  => $meeting->id,
                     'user_id'     => $speakerData['user_id'],
                     'slot'        => $slot + 1,
-                    'speech_type' => $speakerData['speech_type'] ?: null,
-                    'project'     => $speakerData['project'] ?: null,
-                    'topic'       => $speakerData['topic'] ?: null,
-                    'duration'    => $speakerData['duration'] ?: null,
+                    'speech_type' => $speakerData['speech_type'] ?? null,
+                    'project'     => $speakerData['project'] ?? null,
+                    'topic'       => $speakerData['topic'] ?? null,
+                    'duration'    => $speakerData['duration'] ?? null,
                 ]);
             }
         }
 
         // Save TTM speakers
         foreach ($this->ttmSpeakers as $slot => $ttmData) {
-            if ($ttmData['user_id']) {
+            if (! empty($ttmData['user_id'])) {
                 MeetingTtmSpeaker::create([
                     'meeting_id' => $meeting->id,
                     'user_id'    => $ttmData['user_id'],
                     'slot'       => $slot + 1,
-                    'topic'      => $ttmData['topic'] ?: null,
-                    'duration'   => $ttmData['duration'] ?: null,
+                    'topic'      => $ttmData['topic'] ?? null,
+                    'duration'   => $ttmData['duration'] ?? null,
                 ]);
             }
         }
@@ -209,8 +213,8 @@ class MeetingCreate extends Component
         // Save evaluations (after speakers are created)
         $savedSpeakers = $meeting->speakers()->get();
         foreach ($this->evaluations as $evalData) {
-            if ($evalData['evaluator_user_id']) {
-                $speakerRecord = $savedSpeakers->get($evalData['speaker_index']);
+            if (! empty($evalData['evaluator_user_id'])) {
+                $speakerRecord = $savedSpeakers->get((int) ($evalData['speaker_index'] ?? 0));
                 if ($speakerRecord) {
                     MeetingEvaluation::create([
                         'meeting_id'        => $meeting->id,
@@ -225,12 +229,23 @@ class MeetingCreate extends Component
         $this->redirect(route('meetings.show', $meeting), navigate: true);
     }
 
-    public function render(ClubContextService $clubContext)
+    public function render(ClubAccessService $access)
     {
-        $club      = $clubContext->currentClub();
-        $members   = $club ? User::inClub($club->id)->active()->orderBy('name')->get() : collect();
-        $roleTypes = MeetingRoleType::active()->get();
+        $user            = auth()->user();
+        $isGlobal        = $user->isGlobalUser();
+        $accessibleClubs = $access->getAccessibleClubs($user);
 
-        return view('livewire.meetings.meeting-create', compact('club', 'members', 'roleTypes'));
+        $activeClubId = $user->isClubUser() ? $user->primaryClub()?->id : $this->selectedClubId;
+        $currentClub  = $activeClubId ? Club::find($activeClubId) : null;
+        $members      = $currentClub ? User::inClub($currentClub->id)->active()->orderBy('name')->get() : collect();
+        $roleTypes    = MeetingRoleType::active()->get();
+
+        return view('livewire.meetings.meeting-create', compact(
+            'isGlobal',
+            'accessibleClubs',
+            'currentClub',
+            'members',
+            'roleTypes'
+        ));
     }
 }

@@ -4,7 +4,7 @@ namespace App\Livewire\Meetings;
 
 use App\Livewire\Concerns\WithClubContext;
 use App\Models\Meeting;
-use App\Services\ClubContextService;
+use App\Services\ClubAccessService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -17,11 +17,11 @@ class MeetingShow extends Component
 
     public Meeting $meeting;
 
-    public function mount(Meeting $meeting, ClubContextService $clubContext): void
+    public function mount(Meeting $meeting, ClubAccessService $access): void
     {
-        $club = $clubContext->currentClub();
-        // Super Admin can access any club's meeting
-        if ($club && $meeting->club_id !== $club->id && ! auth()->user()->isSuperAdmin()) {
+        $user = auth()->user();
+        // Security check
+        if (! $user->isSuperAdmin() && ! $access->validateUserBelongsToClub($user->id, $meeting->club_id)) {
             abort(403, 'This meeting does not belong to your club.');
         }
 
