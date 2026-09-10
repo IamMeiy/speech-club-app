@@ -79,18 +79,90 @@
                         @endif
                     </div>
                     @can('meeting-roles.manage')
-                    <div class="flex gap-2">
-                        <select wire:model="roleReplacements.{{ $role->id }}"
-                                class="flex-1 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                            <option value="">— Substitute with —</option>
-                            @foreach($members as $m)
-                                @if($m->id !== $role->user_id)
-                                <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <button wire:click="replaceRole({{ $role->id }})"
-                                class="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                    @php
+                        $eligibleMembers = $members->filter(fn($m) => $m->id !== $role->user_id)->values()->map(fn($m) => ['id' => $m->id, 'name' => $m->name]);
+                    @endphp
+                    <div class="flex items-center gap-2"
+                         x-data="{
+                             open: false,
+                             search: '',
+                             selectedId: null,
+                             members: {{ Js::from($eligibleMembers) }},
+                             get filtered() {
+                                 if (!this.search.trim()) return this.members;
+                                 const s = this.search.toLowerCase();
+                                 return this.members.filter(m => m.name.toLowerCase().includes(s));
+                             },
+                             get selectedName() {
+                                 const m = this.members.find(m => String(m.id) === String(this.selectedId));
+                                 return m ? m.name : '';
+                             },
+                             async applyReplacement() {
+                                 if (!this.selectedId) return;
+                                 await $wire.replaceRole({{ $role->id }}, this.selectedId);
+                                 this.selectedId = null;
+                                 this.search = '';
+                                 this.open = false;
+                             }
+                         }">
+                        <div class="relative flex-1" @click.outside="open = false; search = ''">
+                            <button type="button"
+                                    @click="open = !open; if(open) $nextTick(() => $refs.searchInp?.focus())"
+                                    class="w-full flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-left transition-all">
+                                <span class="truncate font-medium" :class="selectedName ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'"
+                                      x-text="selectedName || '— Substitute with —'"></span>
+                                <div class="flex items-center gap-1 shrink-0 ml-1.5">
+                                    <span x-show="selectedId" @click.stop="selectedId = null" class="text-slate-400 hover:text-rose-500 p-0.5 rounded cursor-pointer" title="Clear">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </span>
+                                    <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-primary-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                            </button>
+
+                            <div x-show="open" x-cloak
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95"
+                                 class="absolute left-0 right-0 z-50 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden"
+                                 style="display: none;">
+                                <div class="p-1.5 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/80">
+                                    <div class="relative">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                        <input x-ref="searchInp"
+                                               type="text"
+                                               x-model="search"
+                                               placeholder="Search member..."
+                                               class="w-full pl-7 pr-2 py-1 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                    </div>
+                                </div>
+                                <div class="max-h-40 overflow-y-auto p-1 space-y-0.5">
+                                    <button type="button"
+                                            @click="selectedId = null; open = false; search = ''"
+                                            class="w-full text-left px-2.5 py-1.5 text-xs text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg">
+                                        — Clear selection —
+                                    </button>
+                                    <template x-for="item in filtered" :key="item.id">
+                                        <button type="button"
+                                                @click="selectedId = item.id; open = false; search = ''"
+                                                class="w-full text-left px-2.5 py-1.5 text-xs flex items-center justify-between hover:bg-primary-50 dark:hover:bg-primary-950/40 text-slate-800 dark:text-slate-200 rounded-lg transition-colors"
+                                                :class="String(selectedId) === String(item.id) ? 'bg-primary-50/80 dark:bg-primary-950/60 font-bold text-primary-600 dark:text-primary-400' : ''">
+                                            <span x-text="item.name"></span>
+                                            <svg x-show="String(selectedId) === String(item.id)" class="w-3.5 h-3.5 text-primary-600 dark:text-primary-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                        </button>
+                                    </template>
+                                    <div x-show="filtered.length === 0" class="px-3 py-2 text-center text-xs text-slate-400">
+                                        No members found
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button"
+                                @click="applyReplacement()"
+                                :disabled="!selectedId"
+                                class="px-3 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center shrink-0">
                             ✓
                         </button>
                     </div>

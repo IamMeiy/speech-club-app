@@ -204,13 +204,20 @@ class MeetingTest extends TestCase
             'status'     => 'absent',
         ]);
 
-        // Replace absent TMOD role holder with cholaMember2
+        // Replace absent TMOD role holder with cholaMember2 (via property)
         Livewire::test(\App\Livewire\Meetings\MeetingAttendance::class, ['meeting' => $meeting])
             ->set('roleReplacements.' . $meetingRole->id, $this->cholaMember2->id)
             ->call('replaceRole', $meetingRole->id)
             ->assertHasNoErrors();
 
         $this->assertEquals($this->cholaMember2->id, $meetingRole->fresh()->user_id);
+
+        // Replace again directly with argument (as done by the searchable UI dropdown)
+        Livewire::test(\App\Livewire\Meetings\MeetingAttendance::class, ['meeting' => $meeting])
+            ->call('replaceRole', $meetingRole->id, $this->cholaMember1->id)
+            ->assertHasNoErrors();
+
+        $this->assertEquals($this->cholaMember1->id, $meetingRole->fresh()->user_id);
     }
 
     public function test_changing_club_in_meeting_create_updates_members_list_and_resets_selections(): void
