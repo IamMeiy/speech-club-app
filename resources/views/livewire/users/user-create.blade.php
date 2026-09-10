@@ -1,96 +1,94 @@
-<div class="p-6 lg:p-8">
-    <div class="max-w-2xl mx-auto">
+<div class="max-w-2xl mx-auto space-y-6">
 
-        {{-- Header --}}
-        <div class="flex items-center gap-4 mb-8">
-            <a href="{{ route('members.index') }}" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            </a>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Add Member</h1>
-                @if(!$isGlobal && $currentClub)
-                <p class="text-gray-500 text-sm mt-1">Adding to <span class="font-medium text-indigo-600">{{ $currentClub->name }}</span></p>
-                @endif
-            </div>
+    {{-- Header --}}
+    <div class="flex items-center gap-4">
+        <a href="{{ route('members.index') }}" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Add Club Member</h1>
+            @if(!$isGlobal && $currentClub)
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">Enrolling into <span class="font-semibold text-primary-600 dark:text-primary-400">{{ $currentClub->name }}</span></p>
+            @endif
         </div>
+    </div>
 
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-            <form wire:submit="save" class="space-y-5">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
+        <form wire:submit="save" class="space-y-5">
 
-                {{-- Club Selection for Global Users (Admin / Super Admin) --}}
-                @if($isGlobal)
-                <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4">
-                    <label class="block text-sm font-semibold text-indigo-950 mb-1.5" for="member-club">Assign to Club <span class="text-red-500">*</span></label>
-                    <p class="text-xs text-indigo-700/80 mb-2.5">Select the club this member belongs to.</p>
-                    <select wire:model="selectedClubId" id="member-club"
-                            class="w-full px-4 py-2 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        @foreach($accessibleClubs as $club)
-                            <option value="{{ $club->id }}">{{ $club->name }} ({{ $club->code }})</option>
+            {{-- Club Selection for Global Users (Admin / Super Admin) --}}
+            @if($isGlobal)
+            <div class="bg-primary-50/70 dark:bg-primary-950/40 border border-primary-100 dark:border-primary-900/50 rounded-2xl p-4 sm:p-5">
+                <label class="block text-xs font-bold text-slate-900 dark:text-white mb-1" for="member-club">Assign to Club <span class="text-rose-500">*</span></label>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">Select the club this member belongs to.</p>
+                <select wire:model="selectedClubId" id="member-club"
+                        class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm">
+                    @foreach($accessibleClubs as $club)
+                        <option value="{{ $club->id }}">{{ $club->name }} ({{ $club->code }})</option>
+                    @endforeach
+                </select>
+                @error('selectedClubId') <p class="mt-1.5 text-xs text-rose-500 font-medium">{{ $message }}</p> @enderror
+            </div>
+            @endif
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5" for="member-name">Full Name <span class="text-rose-500">*</span></label>
+                <input wire:model="name" id="member-name" type="text" placeholder="e.g. Arun Kumar"
+                       class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 @error('name') border-rose-300 @enderror">
+                @error('name') <p class="mt-1.5 text-xs text-rose-500 font-medium">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5" for="member-email">Email Address <span class="text-rose-500">*</span></label>
+                    <input wire:model="email" id="member-email" type="email" placeholder="member@example.com"
+                           class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 @error('email') border-rose-300 @enderror">
+                    @error('email') <p class="mt-1.5 text-xs text-rose-500 font-medium">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5" for="member-phone">Phone Number (optional)</label>
+                    <input wire:model="phone" id="member-phone" type="text" placeholder="+91 98000 00000"
+                           class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5" for="member-role">Club Role</label>
+                    <select wire:model="role" id="member-role"
+                            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 @error('role') border-rose-300 @enderror">
+                        @foreach($clubRoles as $r)
+                            <option value="{{ $r }}">{{ $r }}</option>
                         @endforeach
                     </select>
-                    @error('selectedClubId') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                    @error('role') <p class="mt-1.5 text-xs text-rose-500 font-medium">{{ $message }}</p> @enderror
                 </div>
-                @endif
-
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-name">Full Name</label>
-                    <input wire:model="name" id="member-name" type="text" placeholder="e.g. Arun Kumar"
-                           class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('name') border-red-300 @enderror">
-                    @error('name') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5" for="member-status">Account Status</label>
+                    <select wire:model="status" id="member-status"
+                            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
                 </div>
+            </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-email">Email Address</label>
-                        <input wire:model="email" id="member-email" type="email" placeholder="member@example.com"
-                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('email') border-red-300 @enderror">
-                        @error('email') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-phone">Phone (optional)</label>
-                        <input wire:model="phone" id="member-phone" type="text" placeholder="+91 98000 00000"
-                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5" for="member-password">Password <span class="text-rose-500">*</span></label>
+                <input wire:model="password" id="member-password" type="password" placeholder="Min. 8 characters"
+                       class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 @error('password') border-rose-300 @enderror">
+                @error('password') <p class="mt-1.5 text-xs text-rose-500 font-medium">{{ $message }}</p> @enderror
+            </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-role">Club Role</label>
-                        <select wire:model="role" id="member-role"
-                                class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('role') border-red-300 @enderror">
-                            @foreach($clubRoles as $r)
-                                <option value="{{ $r }}">{{ $r }}</option>
-                            @endforeach
-                        </select>
-                        @error('role') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-status">Status</label>
-                        <select wire:model="status" id="member-status"
-                                class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <a href="{{ route('members.index') }}" class="px-5 py-2.5 text-xs sm:text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold transition-colors">Cancel</a>
+                <button type="submit" wire:loading.attr="disabled"
+                        class="px-7 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-md shadow-primary-600/20 disabled:opacity-60 active:scale-[0.98]">
+                    <span wire:loading.remove>Add Member</span>
+                    <span wire:loading>Adding…</span>
+                </button>
+            </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5" for="member-password">Password</label>
-                    <input wire:model="password" id="member-password" type="password" placeholder="Min. 8 characters"
-                           class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('password') border-red-300 @enderror">
-                    @error('password') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
-                </div>
-
-                <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <a href="{{ route('members.index') }}" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors">Cancel</a>
-                    <button type="submit" wire:loading.attr="disabled"
-                            class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-60">
-                        <span wire:loading.remove>Add Member</span>
-                        <span wire:loading>Adding…</span>
-                    </button>
-                </div>
-
-            </form>
-        </div>
+        </form>
     </div>
 </div>
