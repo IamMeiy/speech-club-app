@@ -1,0 +1,62 @@
+<?php
+
+namespace App\Livewire\Meetings;
+
+use App\Livewire\Concerns\WithClubContext;
+use App\Models\Meeting;
+use App\Services\ClubContextService;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\WithPagination;
+
+#[Layout('components.layouts.app')]
+#[Title('Meetings')]
+class MeetingIndex extends Component
+{
+    use WithPagination, WithClubContext;
+
+    public string $search  = '';
+    public string $status  = '';
+    public string $filter  = 'all'; // all, upcoming, past
+    public int    $perPage = 15;
+
+    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingStatus(): void { $this->resetPage(); }
+    public function updatingFilter(): void { $this->resetPage(); }
+
+    public function deleteMeeting(int $meetingId): void
+    {
+        $this->authorize('meetings.delete');
+        $club    = $this->getCurrentClub();
+        $meeting = Meeting::findOrFail($meetingId);
+
+        // Security: ensure meeting belongs to current club
+        if ($club && $meeting->club_id !== $club->id) {
+            abort(403);
+        }
+
+        $meeting->delete();
+        $this->dispatch('flash', message: 'Meeting deleted.', type: 'success');
+    }
+
+    public function render(ClubContextService $clubContext)
+    {
+        $club = $clubContext->currentClub();
+
+        $query = Meeting::with('club')
+            ->when($club, fn ($q) => $q->forClub($club->id))
+            ->when($this->search, fn ($q) => $q->where(function ($q) {
+                $q->where('theme', 'like', "%{$this->search}%")
+                  ->orWhere('meeting_number', 'like', "%{$this->search}%");
+            }))
+            ->when($this->status, fn ($q) => $q->where('status', $this->status))
+            ->when($this->filter === 'upcoming', fn ($q) => $q->upcoming())
+            ->when($this->filter === 'past', fn ($q) => $q->past())
+            ->orderByDesc('meeting_date');
+
+        $meetings = $query->paginate($this->perPage);
+
+        return view('livewire.meetings.meeting-index', compact('meetings', 'club'));
+    }
+}
