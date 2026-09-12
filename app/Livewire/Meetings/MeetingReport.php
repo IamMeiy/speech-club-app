@@ -28,8 +28,11 @@ class MeetingReport extends Component
         $this->meeting = $meeting;
     }
 
-    public function downloadPdf()
+    public function downloadPdf(string $theme = 'indigo')
     {
+        $validThemes = ['indigo', 'emerald', 'blue', 'purple', 'rose', 'amber', 'cyan'];
+        $theme = in_array($theme, $validThemes, true) ? $theme : 'indigo';
+
         $meeting = $this->meeting->load([
             'club',
             'roles.roleType',
@@ -50,7 +53,7 @@ class MeetingReport extends Component
             'total'   => $meeting->attendance->count(),
         ];
 
-        $pdf = Pdf::loadView('pdf.meeting-report', compact('meeting', 'stats'))
+        $pdf = Pdf::loadView('pdf.meeting-report', compact('meeting', 'stats', 'theme'))
             ->setPaper('a4', 'portrait')
             ->setOption(['isRemoteEnabled' => true, 'defaultFont' => 'sans-serif']);
 
