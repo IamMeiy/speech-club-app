@@ -186,7 +186,9 @@
     @if($meeting->notes)
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
         <h2 class="text-base font-bold text-slate-900 dark:text-white mb-3">Meeting Notes & Takeaways</h2>
-        <p class="text-slate-600 dark:text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{{ $meeting->notes }}</p>
+        <div class="rich-text-content text-slate-600 dark:text-slate-300">
+            {!! $meeting->notes !!}
+        </div>
     </div>
     @endif
 

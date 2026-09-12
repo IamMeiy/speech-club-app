@@ -61,8 +61,10 @@
         </div>
         @if($meeting->notes)
         <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-            <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Notes</p>
-            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{{ $meeting->notes }}</p>
+            <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Notes</p>
+            <div class="rich-text-content text-slate-600 dark:text-slate-300">
+                {!! $meeting->notes !!}
+            </div>
         </div>
         @endif
     </div>

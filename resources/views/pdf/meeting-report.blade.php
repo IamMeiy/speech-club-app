@@ -361,9 +361,18 @@
             padding: 10px 14px;
             font-size: 10.5px;
             color: #334155;
-            white-space: pre-wrap;
-            line-height: 1.5;
+            line-height: 1.55;
         }
+
+        .notes-box p { margin: 0 0 6px 0; }
+        .notes-box p:last-child { margin-bottom: 0; }
+        .notes-box ul, .notes-box ol { margin: 4px 0 6px 18px; padding: 0; }
+        .notes-box li { margin-bottom: 2px; }
+        .notes-box strong, .notes-box b { font-weight: 700; color: #0f172a; }
+        .notes-box h2, .notes-box h3, .notes-box h4 { font-size: 11px; font-weight: 800; color: #0f172a; margin: 8px 0 4px 0; }
+        .notes-box blockquote { border-left: 3px solid {{ $th['500'] }}; padding-left: 8px; color: #64748b; margin: 4px 0; font-style: italic; }
+        .notes-box a { color: {{ $th['600'] }}; text-decoration: underline; }
+        .notes-box hr { border: none; border-top: 1px solid #e2e8f0; margin: 8px 0; }
 
         /* ------------------------------------------------------------- */
         /* Footer */
@@ -597,7 +606,7 @@
     @if($meeting->notes)
     <div class="section-container">
         <div class="section-heading">Meeting Minutes & Secretary Notes</div>
-        <div class="notes-box">{{ $meeting->notes }}</div>
+        <div class="notes-box">{!! $meeting->notes !!}</div>
     </div>
     @endif
 
