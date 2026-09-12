@@ -292,77 +292,108 @@
       @keydown.escape.window="if (showTimerSheet) { showTimerSheet = false; } else if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
-        <div class="flex items-center gap-4">
-            <a href="{{ route('meetings.index') }}" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            </a>
-            <div>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Meeting #{{ $meeting->meeting_number }}</h1>
-                    <span class="text-xs font-semibold px-3 py-1 rounded-full {{ $meeting->statusColor() }}">{{ ucfirst($meeting->status) }}</span>
+    <div class="bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-5">
+        {{-- Top Row: Identity & Primary Management --}}
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <a href="{{ route('meetings.index') }}" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Meeting #{{ $meeting->meeting_number }}</h1>
+                        <span class="text-xs font-semibold px-3 py-1 rounded-full {{ $meeting->statusColor() }}">{{ ucfirst($meeting->status) }}</span>
+                    </div>
+                    <p class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
+                        {{ $meeting->club->name }} &bull; {{ $meeting->meeting_date->format('d F Y') }}
+                        @if($meeting->formattedTime())
+                            &bull; <span class="font-semibold text-slate-700 dark:text-slate-300">{{ $meeting->formattedTime() }}</span>
+                        @endif
+                    </p>
                 </div>
-                <p class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
-                    {{ $meeting->club->name }} &bull; {{ $meeting->meeting_date->format('d F Y') }}
-                    @if($meeting->formattedTime())
-                        &bull; <span class="font-semibold text-slate-700 dark:text-slate-300">{{ $meeting->formattedTime() }}</span>
-                    @endif
-                </p>
+            </div>
+
+            {{-- Primary Admin Actions --}}
+            <div class="flex items-center gap-2 self-start sm:self-auto">
+                @can('meetings.update')
+                <a href="{{ route('meetings.edit', $meeting) }}"
+                   class="inline-flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-xs">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    <span>Edit</span>
+                </a>
+                @endcan
+
+                @can('attendance.manage')
+                <a href="{{ route('meetings.attendance', $meeting) }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-md shadow-primary-600/20 active:scale-[0.98]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    <span>Attendance</span>
+                </a>
+                @endcan
             </div>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            {{-- Agenda PDF Download --}}
-            <button x-on:click="$wire.downloadAgenda(currentTheme)" wire:loading.attr="disabled"
-                    class="px-4 py-2 bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-900/60 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800/60 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-[0.98]">
-                <svg wire:loading.remove wire:target="downloadAgenda" class="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <svg wire:loading wire:target="downloadAgenda" class="w-4 h-4 animate-spin text-primary-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                <span wire:loading.remove wire:target="downloadAgenda">Agenda PDF</span>
-                <span wire:loading wire:target="downloadAgenda">Generating…</span>
-            </button>
 
-            {{-- Live Facilitator Tools Button (Pure Alpine.js 0ms latency) --}}
-            <button @click="showLiveTools = true; activeTab = 'ah_counter'" type="button"
-                    class="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-[0.98]">
-                <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
-                </svg>
-                <span>Live Counter Tools</span>
-            </button>
+        {{-- Bottom Action Strip: Tools & Outputs --}}
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            {{-- Left: Session Facilitation Tools --}}
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Session Tools:
+                </span>
 
-            {{-- Standalone Timer Sheet Button --}}
-            <button @click="showTimerSheet = true" type="button"
-                    class="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-[0.98]">
-                <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Timer Sheet</span>
-            </button>
+                {{-- Live Facilitator Tools Button --}}
+                <button @click="showLiveTools = true; activeTab = 'ah_counter'" type="button"
+                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                    <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                    </svg>
+                    <span>Live Counter Tools</span>
+                </button>
 
-            @can('meetings.update')
-            <a href="{{ route('meetings.edit', $meeting) }}"
-               class="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-sm">
-                Edit
-            </a>
-            @endcan
+                {{-- Standalone Timer Sheet Button --}}
+                <button @click="showTimerSheet = true" type="button"
+                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                    <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Timer Sheet</span>
+                </button>
+            </div>
 
-            @can('attendance.manage')
-            <a href="{{ route('meetings.attendance', $meeting) }}"
-               class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-md shadow-primary-600/20 active:scale-[0.98]">
-                Attendance
-            </a>
-            @endcan
+            {{-- Right: Meeting Outputs & Reports --}}
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1">Outputs:</span>
 
-            @can('reports.view')
-            <a href="{{ route('meetings.report', $meeting) }}"
-               class="px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-sm">
-                Report
-            </a>
-            @endcan
+                {{-- Agenda PDF Download --}}
+                <button x-on:click="$wire.downloadAgenda(currentTheme)" wire:loading.attr="disabled"
+                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                    <svg wire:loading.remove wire:target="downloadAgenda" class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <svg wire:loading wire:target="downloadAgenda" class="w-4 h-4 animate-spin text-rose-500" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span wire:loading.remove wire:target="downloadAgenda">Agenda PDF</span>
+                    <span wire:loading wire:target="downloadAgenda">Generating…</span>
+                </button>
+
+                {{-- Meeting Report --}}
+                @can('reports.view')
+                <a href="{{ route('meetings.report', $meeting) }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Report</span>
+                </a>
+                @endcan
+            </div>
         </div>
     </div>
 
