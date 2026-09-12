@@ -10,6 +10,7 @@ use App\Models\MeetingGrammarianLog;
 use App\Models\MeetingRole;
 use App\Models\MeetingRoleType;
 use App\Models\MeetingSpeaker;
+use App\Models\MeetingTimerLog;
 use App\Models\MeetingTtmSpeaker;
 use App\Models\User;
 use App\Services\ClubAccessService;
@@ -311,85 +312,107 @@ class MeetingShow extends Component
         $this->dispatch('flash', message: 'Grammarian notes saved.', type: 'success');
     }
 
-    public function saveAllCounts(array $ahCounts = [], array $grammarCounts = []): void
+    public function saveAhCounterCounts(array $ahCounts): void
     {
-        $allowed = ['ah_count', 'um_count', 'er_count', 'like_count', 'you_know_count', 'so_count', 'repeats_count', 'other_count'];
+        $this->saveAllCounts($ahCounts, null, 'ah_counter');
+    }
 
-        foreach ($ahCounts as $userId => $counts) {
-            $userId = (int) $userId;
-            if ($userId <= 0 || ! is_array($counts)) {
-                continue;
-            }
+    public function saveGrammarianCounts(array $grammarCounts): void
+    {
+        $this->saveAllCounts(null, $grammarCounts, 'grammarian');
+    }
 
-            if (! User::where('id', $userId)->exists()) {
-                continue;
-            }
+    public function saveAllCounts(?array $ahCounts = null, ?array $grammarCounts = null, ?string $role = null): void
+    {
+        $shouldProcessAh = ($role === 'ah_counter') || ($role === null && $ahCounts !== null && ! empty($ahCounts));
+        $shouldProcessGrammar = ($role === 'grammarian') || ($role === null && $grammarCounts !== null && ! empty($grammarCounts));
 
-            $data = [];
-            $hasNonZero = false;
-            foreach ($allowed as $f) {
-                if (array_key_exists($f, $counts)) {
-                    $val = max(0, (int) $counts[$f]);
-                    $data[$f] = $val;
-                    if ($val > 0) {
-                        $hasNonZero = true;
+        if ($shouldProcessAh && ! empty($ahCounts)) {
+            $allowed = ['ah_count', 'um_count', 'er_count', 'like_count', 'you_know_count', 'so_count', 'repeats_count', 'other_count'];
+
+            foreach ($ahCounts as $userId => $counts) {
+                $userId = (int) $userId;
+                if ($userId <= 0 || ! is_array($counts)) {
+                    continue;
+                }
+
+                if (! User::where('id', $userId)->exists()) {
+                    continue;
+                }
+
+                $data = [];
+                $hasNonZero = false;
+                foreach ($allowed as $f) {
+                    if (array_key_exists($f, $counts)) {
+                        $val = max(0, (int) $counts[$f]);
+                        $data[$f] = $val;
+                        if ($val > 0) {
+                            $hasNonZero = true;
+                        }
                     }
                 }
-            }
 
-            $existing = MeetingAhCounterLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
-            if (! empty($data) && ($hasNonZero || $existing)) {
-                MeetingAhCounterLog::updateOrCreate(
-                    ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
-                    $data
-                );
+                $existing = MeetingAhCounterLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
+                if (! empty($data) && ($hasNonZero || ($role === 'ah_counter' && $existing))) {
+                    MeetingAhCounterLog::updateOrCreate(
+                        ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
+                        $data
+                    );
+                }
             }
         }
 
-        foreach ($grammarCounts as $userId => $counts) {
-            $userId = (int) $userId;
-            if ($userId <= 0) {
-                continue;
-            }
-
-            if (! User::where('id', $userId)->exists()) {
-                continue;
-            }
-
-            if (is_array($counts)) {
-                $wodCount = max(0, (int) ($counts['word_of_day_count'] ?? 0));
-                $goodPhrases = isset($counts['good_phrases']) && trim((string)$counts['good_phrases']) !== '' ? trim((string)$counts['good_phrases']) : null;
-                $awkwardPhrases = isset($counts['awkward_phrases']) && trim((string)$counts['awkward_phrases']) !== '' ? trim((string)$counts['awkward_phrases']) : null;
-                $notes = isset($counts['notes']) && trim((string)$counts['notes']) !== '' ? trim((string)$counts['notes']) : null;
-
-                $hasData = ($wodCount > 0 || $goodPhrases !== null || $awkwardPhrases !== null || $notes !== null);
-                $existing = MeetingGrammarianLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
-
-                if ($hasData || $existing) {
-                    MeetingGrammarianLog::updateOrCreate(
-                        ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
-                        [
-                            'word_of_day_count' => $wodCount,
-                            'good_phrases'      => $goodPhrases,
-                            'awkward_phrases'   => $awkwardPhrases,
-                            'notes'             => $notes,
-                        ]
-                    );
+        if ($shouldProcessGrammar && ! empty($grammarCounts)) {
+            foreach ($grammarCounts as $userId => $counts) {
+                $userId = (int) $userId;
+                if ($userId <= 0) {
+                    continue;
                 }
-            } else {
-                $wodCount = max(0, (int) $counts);
-                $existing = MeetingGrammarianLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
-                if ($wodCount > 0 || $existing) {
-                    MeetingGrammarianLog::updateOrCreate(
-                        ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
-                        ['word_of_day_count' => $wodCount]
-                    );
+
+                if (! User::where('id', $userId)->exists()) {
+                    continue;
+                }
+
+                if (is_array($counts)) {
+                    $wodCount = max(0, (int) ($counts['word_of_day_count'] ?? 0));
+                    $goodPhrases = isset($counts['good_phrases']) && trim((string)$counts['good_phrases']) !== '' ? trim((string)$counts['good_phrases']) : null;
+                    $awkwardPhrases = isset($counts['awkward_phrases']) && trim((string)$counts['awkward_phrases']) !== '' ? trim((string)$counts['awkward_phrases']) : null;
+                    $notes = isset($counts['notes']) && trim((string)$counts['notes']) !== '' ? trim((string)$counts['notes']) : null;
+
+                    $hasData = ($wodCount > 0 || $goodPhrases !== null || $awkwardPhrases !== null || $notes !== null);
+                    $existing = MeetingGrammarianLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
+
+                    if ($hasData || ($role === 'grammarian' && $existing)) {
+                        MeetingGrammarianLog::updateOrCreate(
+                            ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
+                            [
+                                'word_of_day_count' => $wodCount,
+                                'good_phrases'      => $goodPhrases,
+                                'awkward_phrases'   => $awkwardPhrases,
+                                'notes'             => $notes,
+                            ]
+                        );
+                    }
+                } else {
+                    $wodCount = max(0, (int) $counts);
+                    $existing = MeetingGrammarianLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
+                    if ($wodCount > 0 || ($role === 'grammarian' && $existing)) {
+                        MeetingGrammarianLog::updateOrCreate(
+                            ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
+                            ['word_of_day_count' => $wodCount]
+                        );
+                    }
                 }
             }
         }
 
         $this->dispatch('counts-saved');
-        $this->dispatch('flash', message: 'Live facilitator counts saved successfully!', type: 'success');
+        $msg = match ($role) {
+            'ah_counter' => 'Ah-Counter counts saved successfully!',
+            'grammarian' => 'Grammarian report saved successfully!',
+            default      => 'Live facilitator counts saved successfully!',
+        };
+        $this->dispatch('flash', message: $msg, type: 'success');
     }
 
     public function syncAhCounts(int $userId, array $counts): void
@@ -447,6 +470,50 @@ class MeetingShow extends Component
         $this->dispatch('flash', message: 'Evaluation feedback saved successfully!', type: 'success');
     }
 
+    public function saveTimerLogs(array $timerData = []): void
+    {
+        foreach ($timerData as $item) {
+            if (empty($item['speaker_type']) || empty($item['user_id'])) {
+                continue;
+            }
+
+            $meetingId = $this->meeting->id;
+            $speakerType = $item['speaker_type'];
+            $refId = ! empty($item['reference_id']) ? (int) $item['reference_id'] : null;
+            $userId = (int) $item['user_id'];
+            $allotted = $item['allotted_time'] ?? null;
+            $timeTaken = isset($item['time_taken']) && trim((string)$item['time_taken']) !== '' ? trim((string)$item['time_taken']) : null;
+            $status = in_array($item['status'] ?? '', ['within_time', 'over_time', 'under_time', 'disqualified'], true)
+                ? $item['status']
+                : 'within_time';
+
+            $existing = MeetingTimerLog::where('meeting_id', $meetingId)
+                ->where('speaker_type', $speakerType)
+                ->when($refId, fn ($q) => $q->where('reference_id', $refId), fn ($q) => $q->where('user_id', $userId))
+                ->first();
+
+            if ($timeTaken !== null || $existing) {
+                MeetingTimerLog::updateOrCreate(
+                    [
+                        'meeting_id'   => $meetingId,
+                        'speaker_type' => $speakerType,
+                        'reference_id' => $refId,
+                    ],
+                    [
+                        'user_id'       => $userId,
+                        'allotted_time' => $allotted,
+                        'time_taken'    => $timeTaken,
+                        'status'        => $status,
+                        'notes'         => ! empty($item['notes']) ? trim($item['notes']) : null,
+                    ]
+                );
+            }
+        }
+
+        $this->dispatch('timer-logs-saved');
+        $this->dispatch('flash', message: 'Timer sheet saved successfully!', type: 'success');
+    }
+
     public function render()
     {
         $meeting = $this->meeting->load([
@@ -463,6 +530,7 @@ class MeetingShow extends Component
             'attendance.user',
             'ahCounterLogs.user',
             'grammarianLogs.user',
+            'timerLogs.user',
         ]);
 
         $allRoleTypes = MeetingRoleType::active()->get();
@@ -494,6 +562,16 @@ class MeetingShow extends Component
                 'good_phrases'      => $g->good_phrases ?? '',
                 'awkward_phrases'   => $g->awkward_phrases ?? '',
                 'notes'             => $g->notes ?? '',
+            ];
+        }
+
+        $initialTimerLogs = [];
+        foreach ($meeting->timerLogs as $tl) {
+            $key = $tl->speaker_type . '_' . ($tl->reference_id ?: $tl->user_id);
+            $initialTimerLogs[$key] = [
+                'time_taken' => $tl->time_taken ?? '',
+                'status'     => $tl->status ?? 'within_time',
+                'notes'      => $tl->notes ?? '',
             ];
         }
 
@@ -576,7 +654,8 @@ class MeetingShow extends Component
             'canVolunteer',
             'projects',
             'initialAhLogs',
-            'initialGrammarLogs'
+            'initialGrammarLogs',
+            'initialTimerLogs'
         ))->title('Meeting #' . $meeting->meeting_number . ' — ' . $meeting->club->name);
     }
 }

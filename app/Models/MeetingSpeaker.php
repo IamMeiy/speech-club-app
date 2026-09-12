@@ -54,4 +54,20 @@ class MeetingSpeaker extends Model
     {
         return $this->hasOne(MeetingEvaluation::class, 'speaker_id');
     }
+
+    /**
+     * Get the formatted timing duration for this speech.
+     */
+    public function formattedTiming(): string
+    {
+        if (! empty($this->duration)) {
+            return $this->duration;
+        }
+
+        if ($this->projectModel) {
+            return $this->projectModel->formattedTiming();
+        }
+
+        return '5-7 mins';
+    }
 }

@@ -38,11 +38,13 @@ class MeetingReport extends Component
             'roles.roleType',
             'roles.user',
             'speakers.user',
+            'speakers.projectModel',
             'speakers.evaluation.evaluator',
             'ttmSpeakers.user',
             'evaluations.speaker.user',
             'evaluations.evaluator',
             'attendance.user',
+            'timerLogs.user',
         ]);
 
         $stats = [
@@ -77,11 +79,13 @@ class MeetingReport extends Component
             'roles.roleType',
             'roles.user',
             'speakers.user',
+            'speakers.projectModel',
             'speakers.evaluation.evaluator',
             'ttmSpeakers.user',
             'evaluations.speaker.user',
             'evaluations.evaluator',
             'attendance.user',
+            'timerLogs.user',
         ]);
 
         // Attendance stats

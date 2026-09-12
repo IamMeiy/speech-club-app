@@ -105,6 +105,14 @@ class Meeting extends Model
     }
 
     /**
+     * Timer tracking logs for this meeting.
+     */
+    public function timerLogs(): HasMany
+    {
+        return $this->hasMany(MeetingTimerLog::class)->with('user');
+    }
+
+    /**
      * Whether this meeting has a Word of the Day defined.
      */
     public function hasWordOfTheDay(): bool
