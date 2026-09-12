@@ -1,4 +1,163 @@
-<div class="max-w-6xl mx-auto space-y-6">
+<div class="max-w-6xl mx-auto space-y-6"
+     x-data="{
+         currentTheme: localStorage.getItem('theme_color') || 'indigo',
+         showLiveTools: false,
+         showSpeakerModal: false,
+         showTtmModal: false,
+         activeTab: 'ah_counter',
+         searchAttendee: '',
+         ahCounts: {{ !empty($initialAhLogs) ? Js::from($initialAhLogs) : '{}' }},
+         grammarCounts: {{ !empty($initialGrammarLogs) ? Js::from($initialGrammarLogs) : '{}' }},
+         isSavingCounts: false,
+
+         getAh(userId, type) {
+             if (!this.ahCounts[userId]) {
+                 this.ahCounts[userId] = { ah_count: 0, um_count: 0, er_count: 0, like_count: 0, you_know_count: 0, so_count: 0, repeats_count: 0, other_count: 0 };
+             }
+             return this.ahCounts[userId][type] || 0;
+         },
+
+         getTotal(userId) {
+             const c = this.ahCounts[userId];
+             if (!c) return 0;
+             return (c.ah_count || 0) + (c.um_count || 0) + (c.er_count || 0) + (c.like_count || 0) + (c.you_know_count || 0) + (c.so_count || 0) + (c.repeats_count || 0) + (c.other_count || 0);
+         },
+
+         incrementAh(userId, type) {
+             if (!this.ahCounts[userId]) {
+                 this.ahCounts[userId] = { ah_count: 0, um_count: 0, er_count: 0, like_count: 0, you_know_count: 0, so_count: 0, repeats_count: 0, other_count: 0 };
+             }
+             this.ahCounts[userId][type] = (this.ahCounts[userId][type] || 0) + 1;
+         },
+
+         decrementAh(userId, type) {
+             if (!this.ahCounts[userId]) return;
+             if (this.ahCounts[userId][type] > 0) {
+                 this.ahCounts[userId][type]--;
+             }
+         },
+
+         getWod(userId) {
+             return this.grammarCounts[userId]?.word_of_day_count || 0;
+         },
+
+         incrementWod(userId) {
+             if (!this.grammarCounts[userId]) {
+                 this.grammarCounts[userId] = { word_of_day_count: 0, good_phrases: '', awkward_phrases: '', notes: '' };
+             }
+             this.grammarCounts[userId].word_of_day_count = (this.grammarCounts[userId].word_of_day_count || 0) + 1;
+         },
+
+         decrementWod(userId) {
+             if (!this.grammarCounts[userId]) return;
+             if (this.grammarCounts[userId].word_of_day_count > 0) {
+                 this.grammarCounts[userId].word_of_day_count--;
+             }
+         },
+
+         saveFinalCounts() {
+             this.isSavingCounts = true;
+
+             const cleanAh = {};
+             for (const [uid, val] of Object.entries(this.ahCounts || {})) {
+                 const id = parseInt(uid, 10);
+                 if (id > 0 && typeof val === 'object' && val !== null) {
+                     cleanAh[id] = val;
+                 }
+             }
+
+             const cleanGrammar = {};
+             for (const [uid, val] of Object.entries(this.grammarCounts || {})) {
+                 const id = parseInt(uid, 10);
+                 if (id > 0) {
+                     cleanGrammar[id] = val;
+                 }
+             }
+
+             $wire.saveAllCounts(cleanAh, cleanGrammar).then(() => {
+                 this.isSavingCounts = false;
+                 this.showLiveTools = false;
+             }).catch(() => {
+                 this.isSavingCounts = false;
+             });
+         },
+
+          showGrammarModal: false,
+          grammarModalUserId: null,
+          grammarModalUserName: '',
+          grammarModalGoodPhrases: '',
+          grammarModalAwkwardPhrases: '',
+
+          openGrammarNotes(userId, userName) {
+              this.grammarModalUserId = userId;
+              this.grammarModalUserName = userName;
+              if (!this.grammarCounts[userId]) {
+                  this.grammarCounts[userId] = { word_of_day_count: 0, good_phrases: '', awkward_phrases: '', notes: '' };
+              }
+              this.grammarModalGoodPhrases = this.grammarCounts[userId].good_phrases || '';
+              this.grammarModalAwkwardPhrases = this.grammarCounts[userId].awkward_phrases || '';
+              this.showGrammarModal = true;
+          },
+
+          saveGrammarNotesModal() {
+              if (this.grammarModalUserId) {
+                  if (!this.grammarCounts[this.grammarModalUserId]) {
+                      this.grammarCounts[this.grammarModalUserId] = { word_of_day_count: 0, good_phrases: '', awkward_phrases: '', notes: '' };
+                  }
+                  this.grammarCounts[this.grammarModalUserId].good_phrases = this.grammarModalGoodPhrases;
+                  this.grammarCounts[this.grammarModalUserId].awkward_phrases = this.grammarModalAwkwardPhrases;
+              }
+              this.showGrammarModal = false;
+          },
+
+          getGoodPhrases(userId) {
+              return this.grammarCounts[userId]?.good_phrases || '';
+          },
+
+          getAwkwardPhrases(userId) {
+              return this.grammarCounts[userId]?.awkward_phrases || '';
+          },
+
+          matchesSearch(name, roles = '') {
+              if (!this.searchAttendee.trim()) return true;
+              const q = this.searchAttendee.toLowerCase().trim();
+              return name.toLowerCase().includes(q) || roles.toLowerCase().includes(q);
+          },
+
+          // Evaluation Notes Modal (Pure Alpine.js 0ms latency)
+          showEvalNotesModal: false,
+          evalModalId: null,
+          evalModalSpeakerName: '',
+          evalModalEvaluatorName: '',
+          evalModalSpeechTitle: '',
+          evalModalNotes: '',
+          evalModalCanEdit: false,
+          evalModalSaving: false,
+
+          openEvalModal(id, speakerName, evaluatorName, speechTitle, notes, canEdit) {
+              this.evalModalId = id;
+              this.evalModalSpeakerName = speakerName;
+              this.evalModalEvaluatorName = evaluatorName;
+              this.evalModalSpeechTitle = speechTitle;
+              this.evalModalNotes = notes || '';
+              this.evalModalCanEdit = canEdit;
+              this.showEvalNotesModal = true;
+          },
+
+          saveEvalNotes() {
+              if (!this.evalModalId) return;
+              this.evalModalSaving = true;
+              $wire.saveEvaluationNotes(this.evalModalId, this.evalModalNotes).then(() => {
+                  this.evalModalSaving = false;
+                  this.showEvalNotesModal = false;
+              }).catch(() => {
+                  this.evalModalSaving = false;
+              });
+          }
+      }"
+      @speaker-signed-up.window="showSpeakerModal = false"
+      @ttm-signed-up.window="showTtmModal = false"
+      @keydown.escape.window="if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
 
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
@@ -11,22 +170,52 @@
                     <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Meeting #{{ $meeting->meeting_number }}</h1>
                     <span class="text-xs font-semibold px-3 py-1 rounded-full {{ $meeting->statusColor() }}">{{ ucfirst($meeting->status) }}</span>
                 </div>
-                <p class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">{{ $meeting->club->name }} · {{ $meeting->meeting_date->format('d F Y') }}</p>
+                <p class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
+                    {{ $meeting->club->name }} &bull; {{ $meeting->meeting_date->format('d F Y') }}
+                    @if($meeting->formattedTime())
+                        &bull; <span class="font-semibold text-slate-700 dark:text-slate-300">{{ $meeting->formattedTime() }}</span>
+                    @endif
+                </p>
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            {{-- Agenda PDF Download --}}
+            <button x-on:click="$wire.downloadAgenda(currentTheme)" wire:loading.attr="disabled"
+                    class="px-4 py-2 bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-900/60 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800/60 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-[0.98]">
+                <svg wire:loading.remove wire:target="downloadAgenda" class="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <svg wire:loading wire:target="downloadAgenda" class="w-4 h-4 animate-spin text-primary-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span wire:loading.remove wire:target="downloadAgenda">Agenda PDF</span>
+                <span wire:loading wire:target="downloadAgenda">Generating…</span>
+            </button>
+
+            {{-- Live Facilitator Tools Button (Pure Alpine.js 0ms latency) --}}
+            <button @click="showLiveTools = true; activeTab = 'ah_counter'" type="button"
+                    class="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-[0.98]">
+                <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                </svg>
+                <span>Live Counter Tools</span>
+            </button>
+
             @can('meetings.update')
             <a href="{{ route('meetings.edit', $meeting) }}"
                class="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-sm">
                 Edit
             </a>
             @endcan
+
             @can('attendance.manage')
             <a href="{{ route('meetings.attendance', $meeting) }}"
                class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-md shadow-primary-600/20 active:scale-[0.98]">
                 Attendance
             </a>
             @endcan
+
             @can('reports.view')
             <a href="{{ route('meetings.report', $meeting) }}"
                class="px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-colors shadow-sm">
@@ -36,14 +225,64 @@
         </div>
     </div>
 
+    {{-- Word of the Day Banner --}}
+    @if($meeting->hasWordOfTheDay())
+    <div class="bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent dark:from-amber-950/30 dark:via-amber-900/10 border border-amber-200 dark:border-amber-800/60 rounded-3xl p-6 sm:p-7 shadow-sm transition-colors">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 dark:bg-amber-400/15 text-amber-700 dark:text-amber-300 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400">Word of the Day</span>
+                        @if($meeting->word_part_of_speech)
+                            <span class="text-[10px] font-semibold italic text-amber-700 dark:text-amber-300 bg-amber-200/60 dark:bg-amber-900/60 px-2 py-0.5 rounded-md">
+                                {{ $meeting->word_part_of_speech }}
+                            </span>
+                        @endif
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-amber-950 dark:text-amber-200 tracking-tight mt-0.5">
+                        {{ $meeting->word_of_the_day }}
+                    </h2>
+                    @if($meeting->word_definition)
+                        <p class="text-xs sm:text-sm text-amber-900/80 dark:text-amber-300/90 mt-1 font-medium leading-relaxed">
+                            {{ $meeting->word_definition }}
+                        </p>
+                    @endif
+                    @if($meeting->word_example_sentence)
+                        <p class="text-xs text-amber-800/70 dark:text-amber-400/80 mt-1 italic">
+                            &ldquo;{{ $meeting->word_example_sentence }}&rdquo;
+                        </p>
+                    @endif
+                </div>
+            </div>
+            <div class="self-start sm:self-center flex-shrink-0">
+                <button @click="showLiveTools = true; activeTab = 'grammarian'" type="button"
+                        class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-[0.98]">
+                    Tally Word Usage →
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Meeting Info Card --}}
-    @if($meeting->theme || $meeting->venue || $meeting->notes)
+    @if($meeting->theme || $meeting->venue || $meeting->notes || $meeting->start_time)
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             @if($meeting->theme)
-            <div>
+            <div class="lg:col-span-2">
                 <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Theme</p>
-                <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $meeting->theme }}</p>
+                <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">&ldquo;{{ $meeting->theme }}&rdquo;</p>
+            </div>
+            @endif
+            @if($meeting->formattedTime())
+            <div>
+                <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Meeting Time</p>
+                <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $meeting->formattedTime() }}</p>
             </div>
             @endif
             @if($meeting->venue)
@@ -52,16 +291,10 @@
                 <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $meeting->venue }}</p>
             </div>
             @endif
-            @if($meeting->creator)
-            <div>
-                <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Created By</p>
-                <p class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $meeting->creator->name }}</p>
-            </div>
-            @endif
         </div>
         @if($meeting->notes)
         <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-            <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Notes</p>
+            <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Meeting Notes & Agenda</p>
             <div class="rich-text-content text-slate-600 dark:text-slate-300">
                 {!! $meeting->notes !!}
             </div>
@@ -72,74 +305,248 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {{-- Fixed Meeting Roles --}}
+        {{-- ================================================================ --}}
+        {{-- Meeting Roles (Self-Service Signups) --}}
+        {{-- ================================================================ --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
-            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Meeting Roles</h2>
-            @if($meeting->roles->isEmpty())
-                <p class="text-slate-400 dark:text-slate-500 text-sm">No roles assigned yet.</p>
-            @else
+            <div class="flex items-center justify-between pb-3 mb-5 border-b border-slate-100 dark:border-slate-800 gap-2">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white whitespace-nowrap">Meeting Roles</h2>
+                @if($canVolunteer)
+                    <span class="text-xs text-primary-600 dark:text-primary-400 font-semibold flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Signups Open
+                    </span>
+                @endif
+            </div>
+
             <div class="space-y-3.5">
-                @foreach($meeting->roles->sortBy('roleType.sort_order') as $role)
-                <div class="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
-                    <span class="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 w-40">{{ $role->roleType->name }}</span>
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-7 h-7 rounded-xl bg-primary-50 dark:bg-primary-950/60 border border-primary-100 dark:border-primary-900/40 flex items-center justify-center text-primary-600 dark:text-primary-400 text-xs font-bold">
-                            {{ strtoupper(substr($role->user->name, 0, 1)) }}
-                        </div>
-                        <span class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">{{ $role->user->name }}</span>
+                @foreach($allRoleTypes as $roleType)
+                    @php
+                        $assignedRole = $meeting->roles->firstWhere('meeting_role_type_id', $roleType->id);
+                        $isCurrentUser = $assignedRole && $assignedRole->user_id === $currentUserId;
+                    @endphp
+                    <div class="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800/60 last:border-0 gap-3">
+                        <span class="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 w-32 sm:w-44 truncate flex-shrink-0">
+                            {{ $roleType->name }}
+                        </span>
+
+                        @if($assignedRole && $assignedRole->user)
+                            <div class="flex items-center gap-2 min-w-0 justify-end flex-1">
+                                <div class="w-7 h-7 rounded-xl bg-primary-50 dark:bg-primary-950/60 border border-primary-100 dark:border-primary-900/40 flex items-center justify-center text-primary-600 dark:text-primary-400 text-xs font-bold flex-shrink-0">
+                                    {{ strtoupper(substr($assignedRole->user->name, 0, 1)) }}
+                                </div>
+                                <span class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                    {{ $assignedRole->user->name }}
+                                </span>
+
+                                @if($isCurrentUser)
+                                    <span class="text-[10px] font-extrabold bg-primary-100 dark:bg-primary-900/60 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-md whitespace-nowrap flex-shrink-0">
+                                        You
+                                    </span>
+                                @endif
+
+                                @if($canVolunteer && ($isCurrentUser || auth()->user()->can('meetings.update')))
+                                    <button wire:click="relinquishRole({{ $assignedRole->id }})"
+                                            wire:confirm="Are you sure you want to step down from this role?"
+                                            class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 ml-1 transition-colors whitespace-nowrap flex-shrink-0">
+                                        Step Down
+                                    </button>
+                                @endif
+                            </div>
+                        @else
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <span class="text-xs text-slate-400 dark:text-slate-500 italic whitespace-nowrap flex-shrink-0">Vacant</span>
+                                @if($canVolunteer)
+                                    <button wire:click="signUpForRole({{ $roleType->id }})"
+                                            class="px-2.5 py-1 bg-primary-50 hover:bg-primary-100 dark:bg-primary-950/50 dark:hover:bg-primary-900/60 text-primary-600 dark:text-primary-400 border border-primary-200/80 dark:border-primary-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 whitespace-nowrap flex-shrink-0">
+                                        + Volunteer
+                                    </button>
+                                @endif
+                            </div>
+                        @endif
                     </div>
-                </div>
                 @endforeach
             </div>
-            @endif
         </div>
 
+        {{-- ================================================================ --}}
         {{-- Prepared Speakers --}}
+        {{-- ================================================================ --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
-            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Prepared Speakers</h2>
+            <div class="flex items-center justify-between pb-3 mb-5 border-b border-slate-100 dark:border-slate-800 gap-2">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white whitespace-nowrap">Prepared Speakers</h2>
+                @if($canVolunteer)
+                    <button @click="showSpeakerModal = true" type="button"
+                            class="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95 flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                        <span>+ Sign Up as Speaker</span>
+                    </button>
+                @endif
+            </div>
+
             @if($meeting->speakers->isEmpty())
-                <p class="text-slate-400 dark:text-slate-500 text-sm">No speakers assigned.</p>
+                <div class="text-center py-8">
+                    <p class="text-slate-400 dark:text-slate-500 text-sm">No speakers registered yet.</p>
+                    @if($canVolunteer)
+                        <button @click="showSpeakerModal = true" type="button" class="mt-2 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                            Be the first to deliver a speech →
+                        </button>
+                    @endif
+                </div>
             @else
             <div class="space-y-3">
                 @foreach($meeting->speakers as $speaker)
-                <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
-                    <div class="flex items-center gap-2.5">
-                        <span class="text-xs font-extrabold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-0.5 rounded-full">#{{ $speaker->slot }}</span>
-                        <span class="font-bold text-slate-900 dark:text-white text-sm">{{ $speaker->user->name }}</span>
+                @php
+                    $isMySpeech = $speaker->user_id === $currentUserId;
+                @endphp
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                                <span class="text-xs font-extrabold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-0.5 rounded-full flex-shrink-0">#{{ $speaker->slot }}</span>
+                                <span class="font-bold text-slate-900 dark:text-white text-sm truncate">{{ $speaker->user->name }}</span>
+                                @if($isMySpeech)
+                                    <span class="text-[10px] font-extrabold bg-primary-100 dark:bg-primary-900/60 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-md whitespace-nowrap flex-shrink-0">You</span>
+                                @endif
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <span class="text-xs text-slate-400 font-semibold bg-white dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700 whitespace-nowrap flex-shrink-0">{{ $speaker->duration ?: '5-7 mins' }}</span>
+                                @if($canVolunteer && ($isMySpeech || auth()->user()->can('meetings.update')))
+                                    <button wire:click="relinquishSpeaker({{ $speaker->id }})"
+                                            wire:confirm="Remove this speaker slot?"
+                                            class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 transition-colors whitespace-nowrap flex-shrink-0">
+                                        Remove
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+
+                        @if($speaker->topic)
+                        <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-2 ml-8">&ldquo;{{ $speaker->topic }}&rdquo;</p>
+                        @endif
+
+                        <div class="flex flex-wrap items-center gap-2 ml-8 mt-1.5 text-[11px]">
+                            @if($speaker->projectModel)
+                                <span class="font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/60 px-2 py-0.5 rounded-md border border-primary-200/60 dark:border-primary-900/40">
+                                    {{ $speaker->projectModel->levelBadge() }}: {{ $speaker->projectModel->name }}
+                                </span>
+                            @elseif($speaker->project)
+                                <span class="font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded-md">
+                                    {{ $speaker->project }}
+                                </span>
+                            @endif
+
+                            @if($speaker->speech_type)
+                                <span class="text-slate-400 dark:text-slate-500">&bull; {{ $speaker->speech_type }}</span>
+                            @endif
+                        </div>
+
+                        @if($speaker->evaluation)
+                            @php
+                                $eval = $speaker->evaluation;
+                                $canEditEval = ($eval->evaluator_user_id === $currentUserId) || auth()->user()->can('meetings.update') || auth()->user()->isSuperAdmin();
+                                $hasNotes = !empty(trim($eval->notes ?? ''));
+                            @endphp
+                            <div class="mt-3 ml-8 p-3.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/60 shadow-xs space-y-2">
+                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <div class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                            E
+                                        </div>
+                                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                                            Evaluator: <span class="font-bold text-slate-900 dark:text-white">{{ $eval->evaluator->name }}</span>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        @if($hasNotes)
+                                            <button type="button"
+                                                    @click="openEvalModal({{ $eval->id }}, '{{ addslashes($speaker->user->name) }}', '{{ addslashes($eval->evaluator->name) }}', '{{ addslashes($speaker->topic ?: 'Speech #' . $speaker->slot) }}', {{ Js::from($eval->notes) }}, {{ $canEditEval ? 'true' : 'false' }})"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/60 rounded-lg transition-colors whitespace-nowrap flex-shrink-0">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                <span>Read Feedback</span>
+                                            </button>
+                                        @endif
+                                        @if($canEditEval)
+                                            <button type="button"
+                                                    @click="openEvalModal({{ $eval->id }}, '{{ addslashes($speaker->user->name) }}', '{{ addslashes($eval->evaluator->name) }}', '{{ addslashes($speaker->topic ?: 'Speech #' . $speaker->slot) }}', {{ Js::from($eval->notes ?? '') }}, true)"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-lg transition-colors whitespace-nowrap flex-shrink-0">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                <span>{{ $hasNotes ? 'Edit Notes' : '+ Write Feedback' }}</span>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                                @if($hasNotes)
+                                    <div class="text-xs text-slate-600 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 line-clamp-2 leading-relaxed">
+                                        &ldquo;{{ Str::limit($eval->notes, 140) }}&rdquo;
+                                    </div>
+                                @elseif(! $canEditEval)
+                                    <p class="text-[11px] text-slate-400 italic">No written evaluation notes posted yet.</p>
+                                @endif
+                            </div>
+                        @endif
                     </div>
-                    @if($speaker->topic)
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 ml-8">{{ $speaker->topic }}</p>
-                    @endif
-                    @if($speaker->evaluation)
-                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1.5 ml-8">Evaluator: {{ $speaker->evaluation->evaluator->name }}</p>
-                    @endif
                 </div>
                 @endforeach
             </div>
             @endif
         </div>
 
-        {{-- TTM Speakers --}}
+        {{-- ================================================================ --}}
+        {{-- Table Topics Speakers --}}
+        {{-- ================================================================ --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
-            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Table Topics Speakers</h2>
+            <div class="flex items-center justify-between pb-3 mb-5 border-b border-slate-100 dark:border-slate-800 gap-2">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white whitespace-nowrap">Table Topics Speakers</h2>
+                @if($canVolunteer)
+                    <button @click="showTtmModal = true" type="button"
+                            class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95 flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                        <span>+ Volunteer for TTM</span>
+                    </button>
+                @endif
+            </div>
+
             @if($meeting->ttmSpeakers->isEmpty())
-                <p class="text-slate-400 dark:text-slate-500 text-sm">No TTM speakers assigned.</p>
+                <div class="text-center py-8">
+                    <p class="text-slate-400 dark:text-slate-500 text-sm">No Table Topics participants signed up yet.</p>
+                    @if($canVolunteer)
+                        <button @click="showTtmModal = true" type="button" class="mt-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                            Volunteer for impromptu speaking →
+                        </button>
+                    @endif
+                </div>
             @else
             <div class="space-y-3">
                 @foreach($meeting->ttmSpeakers as $ttm)
-                <div class="flex items-center gap-3.5 py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
-                    <span class="text-xs font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">#{{ $ttm->slot }}</span>
-                    <div>
-                        <p class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{{ $ttm->user->name }}</p>
-                        @if($ttm->topic) <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ $ttm->topic }}</p> @endif
+                @php
+                    $isMyTtm = $ttm->user_id === $currentUserId;
+                @endphp
+                <div class="flex items-center justify-between py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0 gap-3">
+                    <div class="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                        <span class="text-xs font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 sm:mt-0">#{{ $ttm->slot }}</span>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">{{ $ttm->user->name }}</p>
+                                @if($isMyTtm)
+                                    <span class="text-[10px] font-extrabold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md whitespace-nowrap flex-shrink-0">You</span>
+                                @endif
+                            </div>
+                            @if($ttm->topic) <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 break-words">&ldquo;{{ $ttm->topic }}&rdquo;</p> @endif
+                        </div>
                     </div>
+                    @if($canVolunteer && ($isMyTtm || auth()->user()->can('meetings.update')))
+                        <button wire:click="relinquishTtm({{ $ttm->id }})"
+                                wire:confirm="Remove your Table Topics participation?"
+                                class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 transition-colors whitespace-nowrap flex-shrink-0 ml-2">
+                            Step Down
+                        </button>
+                    @endif
                 </div>
                 @endforeach
             </div>
             @endif
         </div>
 
-        {{-- Attendance Summary --}}
+        {{-- Attendance Overview --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
             <h2 class="text-base font-bold text-slate-900 dark:text-white mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">Attendance Overview</h2>
             @if($meeting->attendance->isEmpty())
@@ -177,6 +584,608 @@
             @endif
         </div>
 
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Volunteer Speaker Modal with Project Selection --}}
+    {{-- ================================================================ --}}
+    {{-- ================================================================ --}}
+    {{-- Volunteer Speaker Modal with Project Selection (Alpine.js) --}}
+    {{-- ================================================================ --}}
+    <div x-show="showSpeakerModal"
+         x-cloak
+         @click.self="showSpeakerModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Volunteer as Prepared Speaker</h3>
+                <button @click="showSpeakerModal = false" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form wire:submit="signUpAsSpeaker" class="space-y-4">
+                {{-- Project Selector --}}
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Speech Project</label>
+                    <select wire:model.live="speakerProjectId"
+                            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium">
+                        <option value="">— Select from Speech Catalog (Auto-fills timing & track) —</option>
+                        @foreach($projects as $proj)
+                            <option value="{{ $proj->id }}">
+                                [{{ $proj->levelBadge() }}] {{ $proj->name }} ({{ $proj->formattedTiming() }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Speech Topic / Title</label>
+                    <input wire:model="speakerTopic" type="text" placeholder="e.g. The Power of Vulnerability"
+                           class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Speech Type / Track</label>
+                        <input wire:model="speakerSpeechType" type="text" placeholder="e.g. Pathways Core / Icebreaker"
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Duration</label>
+                            @if($speakerProjectId)
+                                <span class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold">Project timing</span>
+                            @endif
+                        </div>
+                        <input wire:model="speakerDuration" type="text" placeholder="e.g. 5-7 mins"
+                               @if($speakerProjectId) readonly @endif
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold text-primary-600 dark:text-primary-400 @if($speakerProjectId) bg-slate-100/90 dark:bg-slate-800/80 cursor-not-allowed border-dashed select-none @endif">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Project Name</label>
+                    <input wire:model="speakerProject" type="text" placeholder="e.g. Writing a Speech with Purpose"
+                           class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" @click="showSpeakerModal = false"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
+                        Confirm Volunteer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Volunteer TTM Modal (Alpine.js) --}}
+    {{-- ================================================================ --}}
+    <div x-show="showTtmModal"
+         x-cloak
+         @click.self="showTtmModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Volunteer for Table Topics</h3>
+                <button @click="showTtmModal = false" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form wire:submit="signUpForTtm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Preferred Topic / Focus (Optional)</label>
+                    <input wire:model="ttmTopic" type="text" placeholder="e.g. Ready for any topic!"
+                           class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Table Topics is an impromptu 1-to-2 minute speaking challenge. You will receive a prompt from the Table Topics Master during the meeting.
+                </p>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" @click="showTtmModal = false"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
+                        Join Table Topics
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Live Ah-Counter & Grammarian Tool Modal (100% Alpine.js 0ms Latency) --}}
+    {{-- ================================================================ --}}
+    <div x-show="showLiveTools"
+         x-cloak
+         @click.self="showLiveTools = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6 max-h-[90vh] flex flex-col">
+            
+            {{-- Modal Header & Tabs --}}
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Live Facilitator Tools</h3>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80">
+                                0ms Real-Time
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Meeting #{{ $meeting->meeting_number }} &bull; Instant local counter. Submit final counts when done.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2.5">
+                    {{-- Search attendee in modal --}}
+                    <div class="relative w-36 sm:w-44">
+                        <input x-model="searchAttendee" type="text" placeholder="Search member…"
+                               class="w-full pl-7 pr-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+
+                    {{-- Tab Switcher --}}
+                    <div class="p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center gap-1">
+                        <button @click="activeTab = 'ah_counter'" type="button"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                                :class="activeTab === 'ah_counter' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'">
+                            Ah-Counter
+                        </button>
+                        <button @click="activeTab = 'grammarian'" type="button"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                                :class="activeTab === 'grammarian' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'">
+                            Grammarian
+                        </button>
+                    </div>
+
+                    {{-- Top Header Quick Submit --}}
+                    <button @click="saveFinalCounts()" :disabled="isSavingCounts" type="button"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition-all">
+                        <svg x-show="!isSavingCounts" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="isSavingCounts" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span x-text="isSavingCounts ? 'Saving…' : 'Submit Final'"></span>
+                    </button>
+
+                    <button @click="showLiveTools = false" type="button" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Tab 1: Live Ah-Counter --}}
+            <div x-show="activeTab === 'ah_counter'" class="overflow-y-auto flex-1 space-y-4 pr-1">
+                <div class="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                    <span>💡 <strong>Ah-Counter Mode:</strong> Tap <code class="px-1.5 py-0.5 bg-amber-200/50 dark:bg-amber-900/50 rounded font-bold">+</code> or <code class="px-1.5 py-0.5 bg-amber-200/50 dark:bg-amber-900/50 rounded font-bold">-</code>. Changes update instantly on screen with 0ms delay!</span>
+                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Final&quot; when meeting ends</span>
+                </div>
+
+                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                                <th class="p-3 w-48">Speaker / Role</th>
+                                <th class="p-3 text-center">Ah / Um</th>
+                                <th class="p-3 text-center">Er</th>
+                                <th class="p-3 text-center">Like</th>
+                                <th class="p-3 text-center">So / Well</th>
+                                <th class="p-3 text-center">Repeats</th>
+                                <th class="p-3 text-center">Other</th>
+                                <th class="p-3 text-center font-bold">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @forelse($meetingParticipants as $member)
+                            <tr x-show="matchesSearch('{{ addslashes($member['name']) }}', '{{ addslashes(implode(' ', $member['roles'])) }}')"
+                                class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3">
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $member['name'] }}</div>
+                                    <div class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold flex items-center gap-1 mt-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+                                        <span>{{ implode(', ', $member['roles']) }}</span>
+                                    </div>
+                                </td>
+
+                                {{-- Ah / Um --}}
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
+                                        <button @click="decrementAh({{ $member['id'] }}, 'ah_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
+                                        <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'ah_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
+                                              x-text="getAh({{ $member['id'] }}, 'ah_count')"></span>
+                                        <button @click="incrementAh({{ $member['id'] }}, 'ah_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
+                                    </div>
+                                </td>
+
+                                {{-- Er --}}
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
+                                        <button @click="decrementAh({{ $member['id'] }}, 'er_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
+                                        <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'er_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
+                                              x-text="getAh({{ $member['id'] }}, 'er_count')"></span>
+                                        <button @click="incrementAh({{ $member['id'] }}, 'er_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
+                                    </div>
+                                </td>
+
+                                {{-- Like --}}
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
+                                        <button @click="decrementAh({{ $member['id'] }}, 'like_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
+                                        <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'like_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
+                                              x-text="getAh({{ $member['id'] }}, 'like_count')"></span>
+                                        <button @click="incrementAh({{ $member['id'] }}, 'like_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
+                                    </div>
+                                </td>
+
+                                {{-- So / Well --}}
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
+                                        <button @click="decrementAh({{ $member['id'] }}, 'so_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
+                                        <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'so_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
+                                              x-text="getAh({{ $member['id'] }}, 'so_count')"></span>
+                                        <button @click="incrementAh({{ $member['id'] }}, 'so_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
+                                    </div>
+                                </td>
+
+                                {{-- Repeats --}}
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
+                                        <button @click="decrementAh({{ $member['id'] }}, 'repeats_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
+                                        <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'repeats_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
+                                              x-text="getAh({{ $member['id'] }}, 'repeats_count')"></span>
+                                        <button @click="incrementAh({{ $member['id'] }}, 'repeats_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
+                                    </div>
+                                </td>
+
+                                {{-- Other --}}
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
+                                        <button @click="decrementAh({{ $member['id'] }}, 'other_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
+                                        <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'other_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
+                                              x-text="getAh({{ $member['id'] }}, 'other_count')"></span>
+                                        <button @click="incrementAh({{ $member['id'] }}, 'other_count')" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
+                                    </div>
+                                </td>
+
+                                {{-- Total Fillers --}}
+                                <td class="p-3 text-center font-extrabold"
+                                    :class="getTotal({{ $member['id'] }}) > 0 ? 'text-rose-600 dark:text-rose-400 text-sm' : 'text-slate-400'"
+                                    x-text="getTotal({{ $member['id'] }})">
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-slate-400">
+                                    <div class="max-w-md mx-auto space-y-2">
+                                        <p class="font-bold text-slate-700 dark:text-slate-300 text-sm">No role players or speakers registered yet</p>
+                                        <p class="text-xs text-slate-400 leading-relaxed">Only members with speaking roles (Role Players, Prepared Speakers, Evaluators, and Table Topics Speakers) appear in the Live Counter tracker.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Tab 2: Grammarian Tracker --}}
+            <div x-show="activeTab === 'grammarian'" class="overflow-y-auto flex-1 space-y-4 pr-1">
+                <div class="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-3.5 text-xs text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <span class="font-bold">Word of the Day:</span>
+                        <span class="font-extrabold text-sm ml-1 text-amber-950 dark:text-amber-200">{{ $meeting->word_of_the_day ?: 'Not specified' }}</span>
+                        @if($meeting->word_definition)
+                            <span class="text-[11px] text-amber-900/70 dark:text-amber-300/70 ml-1 italic">&mdash; {{ $meeting->word_definition }}</span>
+                        @endif
+                    </div>
+                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Final&quot; when meeting ends</span>
+                </div>
+
+                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                                <th class="p-3 w-48">Speaker / Role</th>
+                                <th class="p-3 text-center w-36">WOD Usage</th>
+                                <th class="p-3">Good Phrasing</th>
+                                <th class="p-3">Grammar Improvements</th>
+                                <th class="p-3 text-right w-24">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @forelse($meetingParticipants as $member)
+                            @php
+                                $log = $meeting->grammarianLogs->firstWhere('user_id', $member['id']);
+                            @endphp
+                            <tr x-show="matchesSearch('{{ addslashes($member['name']) }}', '{{ addslashes(implode(' ', $member['roles'])) }}')"
+                                class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3">
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $member['name'] }}</div>
+                                    <div class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold flex items-center gap-1 mt-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+                                        <span>{{ implode(', ', $member['roles']) }}</span>
+                                    </div>
+                                </td>
+
+                                {{-- Word of Day Counter (0ms latency) --}}
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-1 rounded-xl">
+                                        <button @click="decrementWod({{ $member['id'] }})" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-800 font-bold text-amber-700 dark:text-amber-300 shadow-xs active:scale-90 transition-transform">-</button>
+                                        <span class="w-5 font-bold text-amber-800 dark:text-amber-300"
+                                              x-text="getWod({{ $member['id'] }})"></span>
+                                        <button @click="incrementWod({{ $member['id'] }})" type="button"
+                                                class="w-5 h-5 rounded-lg bg-white dark:bg-slate-800 font-bold text-amber-700 dark:text-amber-300 shadow-xs active:scale-110 transition-transform">+</button>
+                                    </div>
+                                </td>
+
+                                {{-- Good Phrases (Dynamic Alpine binding) --}}
+                                <td class="p-3 text-slate-600 dark:text-slate-300 text-[11px]">
+                                     <span x-text="getGoodPhrases({{ $member['id'] }}) || '—'"></span>
+                                </td>
+
+                                {{-- Awkward Phrases (Dynamic Alpine binding) --}}
+                                <td class="p-3 text-slate-600 dark:text-slate-300 text-[11px]">
+                                     <span x-text="getAwkwardPhrases({{ $member['id'] }}) || '—'"></span>
+                                </td>
+
+                                {{-- Edit Notes button (100% Alpine.js 0ms latency) --}}
+                                <td class="p-3 text-right">
+                                     <button @click="openGrammarNotes({{ $member['id'] }}, '{{ addslashes($member['name']) }}')" type="button"
+                                             class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-semibold transition-colors active:scale-95">
+                                         Edit Notes
+                                     </button>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-slate-400">
+                                     <div class="max-w-md mx-auto space-y-2">
+                                         <p class="font-bold text-slate-700 dark:text-slate-300 text-sm">No role players or speakers registered yet</p>
+                                         <p class="text-xs text-slate-400 leading-relaxed">Only members with speaking roles (Role Players, Prepared Speakers, Evaluators, and Table Topics Speakers) appear in the Grammarian tracker.</p>
+                                     </div>
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Modal Footer --}}
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+                <p class="text-xs text-slate-400">Counts are stored locally in session until submitted.</p>
+                <div class="flex items-center gap-2.5">
+                    <button @click="showLiveTools = false" type="button"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        Close
+                    </button>
+                    <button @click="saveFinalCounts()" :disabled="isSavingCounts" type="button"
+                            class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                        <svg x-show="!isSavingCounts" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="isSavingCounts" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span x-text="isSavingCounts ? 'Submitting to Meeting…' : 'Submit Final Counts'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Edit Grammarian Notes Sub-Modal (Pure Alpine.js 0ms Latency) --}}
+    {{-- ================================================================ --}}
+    <div x-show="showGrammarModal"
+         x-cloak
+         @click.self="showGrammarModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-60 overflow-y-auto bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">Grammarian Notes</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium" x-text="grammarModalUserName"></p>
+                </div>
+                <button @click="showGrammarModal = false" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form @submit.prevent="saveGrammarNotesModal()" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Good / Eloquent Phrases</label>
+                    <textarea x-model="grammarModalGoodPhrases" rows="3" placeholder="Quotes, metaphors, strong imagery used by this speaker…"
+                              class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Awkward / Grammatical Corrections</label>
+                    <textarea x-model="grammarModalAwkwardPhrases" rows="3" placeholder="Incomplete sentences, misplaced modifiers, mispronunciations…"
+                              class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" @click="showGrammarModal = false"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
+                        Done
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Evaluation Feedback Modal (Pure Alpine.js 0ms Latency) --}}
+    {{-- ================================================================ --}}
+    <div x-show="showEvalNotesModal"
+         x-cloak
+         @click.self="showEvalNotesModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-60 overflow-y-auto bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+            
+            {{-- Modal Header --}}
+            <div class="flex items-start justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Speech Evaluation Feedback</h3>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                            Speaker: <strong x-text="evalModalSpeakerName"></strong>
+                        </span>
+                        <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-200/60 dark:border-emerald-900/40">
+                            Evaluator: <strong x-text="evalModalEvaluatorName"></strong>
+                        </span>
+                    </div>
+                </div>
+                <button @click="showEvalNotesModal = false" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Edit Form vs Read-Only View --}}
+            <template x-if="evalModalCanEdit">
+                <form @submit.prevent="saveEvalNotes()" class="space-y-4">
+                    <div class="p-3 bg-primary-50/70 dark:bg-primary-950/30 rounded-2xl border border-primary-100 dark:border-primary-900/40 text-[11px] sm:text-xs text-primary-800 dark:text-primary-300 leading-relaxed">
+                        <p class="font-bold mb-1">💡 Toastmasters Evaluation Framework:</p>
+                        <p>Highlight commendations (strengths), recommendations (1–2 specific areas to grow), and concluding encouraging remarks.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Written Evaluation Notes & Feedback
+                        </label>
+                        <textarea x-model="evalModalNotes" rows="8"
+                                  placeholder="Write detailed feedback for the speaker...&#10;• What you excelled at:&#10;• Suggestions for improvement:&#10;• General impressions:"
+                                  class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-sans leading-relaxed"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <button type="button" @click="showEvalNotesModal = false"
+                                class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors whitespace-nowrap flex-shrink-0">
+                            Cancel
+                        </button>
+                        <button type="submit" :disabled="evalModalSaving"
+                                class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-95 whitespace-nowrap flex-shrink-0">
+                            <svg x-show="evalModalSaving" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                            <span x-text="evalModalSaving ? 'Saving Feedback…' : 'Save Evaluation'"></span>
+                        </button>
+                    </div>
+                </form>
+            </template>
+
+            <template x-if="!evalModalCanEdit">
+                <div class="space-y-4">
+                    <div class="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Evaluator Remarks</p>
+                        <div x-show="evalModalNotes.trim() !== ''" class="text-xs sm:text-sm text-slate-800 dark:text-slate-100 whitespace-pre-line leading-relaxed font-sans" x-text="evalModalNotes"></div>
+                        <p x-show="evalModalNotes.trim() === ''" class="text-xs text-slate-400 italic">No feedback comments written yet.</p>
+                    </div>
+
+                    <div class="flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button type="button" @click="showEvalNotesModal = false"
+                                class="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-colors whitespace-nowrap flex-shrink-0">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+        </div>
     </div>
 
 </div>

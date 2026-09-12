@@ -92,6 +92,13 @@ Route::middleware('auth')->group(function () {
     });
 
     // -----------------------------------------------------------------------
+    // Speech Projects
+    // -----------------------------------------------------------------------
+    Route::prefix('projects')->name('projects.')->group(function () {
+        Route::get('/', \App\Livewire\Projects\ProjectIndex::class)->name('index');
+    });
+
+    // -----------------------------------------------------------------------
     // Roles & Permissions
     // -----------------------------------------------------------------------
     Route::prefix('roles')->name('roles.')->group(function () {
@@ -103,6 +110,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('permissions')->name('permissions.')->group(function () {
         Route::get('/', PermissionIndex::class)->name('index');
     });
+
+    // My Progress & Feedback
+    Route::get('/my-progress', \App\Livewire\Progress\ProgressIndex::class)->name('progress.index');
 
     // Profile
     Route::get('/profile', ProfileEdit::class)->name('profile');

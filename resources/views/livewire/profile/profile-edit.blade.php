@@ -40,6 +40,95 @@
             </div>
         </div>
 
+        {{-- ================================================================ --}}
+        {{-- Speaking Journey & Milestone Badges --}}
+        {{-- ================================================================ --}}
+        @php
+            $speechesCount = $user->speechesCount();
+            $ttmCount = $user->tableTopicsCount();
+            $evalsCount = $user->evaluationsCount();
+            $rolesCount = $user->meetingRolesCount();
+            $badges = $user->getMilestoneBadges();
+            $unlockedCount = collect($badges)->where('unlocked', true)->count();
+        @endphp
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                        Speaking Journey & Milestone Badges
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Track speeches delivered, evaluations completed, and club milestones unlocked.</p>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-400 self-start sm:self-auto">
+                    <span>🏆 {{ $unlockedCount }} of {{ count($badges) }} Badges Earned</span>
+                </div>
+            </div>
+
+            {{-- Stat Counters Grid --}}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
+                    <p class="text-2xl font-extrabold text-primary-600 dark:text-primary-400">{{ $speechesCount }}</p>
+                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">Prepared Speeches</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Project presentations</p>
+                </div>
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
+                    <p class="text-2xl font-extrabold text-purple-600 dark:text-purple-400">{{ $ttmCount }}</p>
+                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">Table Topics</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Impromptu speeches</p>
+                </div>
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
+                    <p class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{{ $evalsCount }}</p>
+                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">Speech Evaluations</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Peer feedback delivered</p>
+                </div>
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
+                    <p class="text-2xl font-extrabold text-blue-600 dark:text-blue-400">{{ $rolesCount }}</p>
+                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">Meeting Roles</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Facilitator leadership</p>
+                </div>
+            </div>
+
+            {{-- Milestone Badges Grid --}}
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3.5">Achievements & Milestones</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                    @foreach($badges as $b)
+                    <div class="p-3.5 rounded-2xl border transition-all flex flex-col justify-between {{ $b['unlocked'] ? 'bg-gradient-to-br from-white to-slate-50 dark:from-slate-800/90 dark:to-slate-900 border-primary-200 dark:border-primary-900/50 shadow-sm' : 'bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/50 opacity-65' }}">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md {{ $b['unlocked'] ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300' : 'bg-slate-200/80 text-slate-600 dark:bg-slate-800 dark:text-slate-400' }}">
+                                    {{ $b['category'] }}
+                                </span>
+                                @if($b['unlocked'])
+                                    <span class="text-xs text-amber-500" title="Unlocked">⭐</span>
+                                @else
+                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                @endif
+                            </div>
+                            <h5 class="text-sm font-bold text-slate-900 dark:text-white">{{ $b['name'] }}</h5>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{{ $b['description'] }}</p>
+                        </div>
+                        <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
+                            <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                                <span>{{ $b['unlocked'] ? 'Unlocked' : 'Progress' }}</span>
+                                <span>{{ $b['progress'] }} / {{ $b['target'] }}</span>
+                            </div>
+                            <div class="w-full bg-slate-200/80 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div class="{{ $b['unlocked'] ? 'bg-primary-600 dark:bg-primary-400' : 'bg-slate-400 dark:bg-slate-600' }} h-1.5 rounded-full transition-all duration-300"
+                                     style="width: {{ ($b['progress'] / $b['target']) * 100 }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
         {{-- Edit Info Form --}}
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8">
             <h3 class="text-base font-bold text-slate-900 dark:text-white mb-6">Personal Information</h3>

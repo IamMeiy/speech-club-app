@@ -29,6 +29,12 @@ class MeetingEdit extends Component
     public string $venue          = '';
     public string $status         = 'scheduled';
     public string $notes          = '';
+    public string $start_time     = '';
+    public string $end_time       = '';
+    public string $word_of_the_day = '';
+    public string $word_part_of_speech = '';
+    public string $word_definition = '';
+    public string $word_example_sentence = '';
 
     public array $roleAssignments = [];
     public array $speakers        = [];
@@ -51,6 +57,12 @@ class MeetingEdit extends Component
         $this->venue          = $meeting->venue ?? '';
         $this->status         = $meeting->status;
         $this->notes          = $meeting->notes ?? '';
+        $this->start_time     = $meeting->start_time ? substr($meeting->start_time, 0, 5) : '';
+        $this->end_time       = $meeting->end_time ? substr($meeting->end_time, 0, 5) : '';
+        $this->word_of_the_day       = $meeting->word_of_the_day ?? '';
+        $this->word_part_of_speech   = $meeting->word_part_of_speech ?? '';
+        $this->word_definition       = $meeting->word_definition ?? '';
+        $this->word_example_sentence = $meeting->word_example_sentence ?? '';
 
         // Load club members for dynamic dropdowns
         $this->membersList = User::inClub($meeting->club_id)
@@ -70,6 +82,7 @@ class MeetingEdit extends Component
         // Load speakers
         $this->speakers = $meeting->speakers->map(fn ($s) => [
             'user_id'     => $s->user_id ? (string) $s->user_id : '',
+            'project_id'  => $s->project_id ? (string) $s->project_id : '',
             'topic'       => $s->topic ?? '',
             'speech_type' => $s->speech_type ?? '',
             'project'     => $s->project ?? '',
@@ -77,7 +90,7 @@ class MeetingEdit extends Component
         ])->toArray();
 
         if (empty($this->speakers)) {
-            $this->speakers = [['user_id' => '', 'topic' => '', 'speech_type' => '', 'project' => '', 'duration' => '']];
+            $this->speakers = [['user_id' => '', 'project_id' => '', 'topic' => '', 'speech_type' => '', 'project' => '', 'duration' => '']];
         }
 
         // Load TTM speakers
@@ -108,12 +121,18 @@ class MeetingEdit extends Component
         $this->authorize('meetings.update');
 
         $this->validate([
-            'meeting_date'   => 'required|date',
-            'meeting_number' => 'required|integer|min:1|unique:meetings,meeting_number,' . $this->meeting->id . ',id,club_id,' . $this->meeting->club_id,
-            'theme'          => 'nullable|string|max:255',
-            'venue'          => 'nullable|string|max:255',
-            'status'         => 'required|in:draft,scheduled,completed,cancelled',
-            'notes'          => 'nullable|string',
+            'meeting_date'          => 'required|date',
+            'meeting_number'        => 'required|integer|min:1|unique:meetings,meeting_number,' . $this->meeting->id . ',id,club_id,' . $this->meeting->club_id,
+            'theme'                 => 'nullable|string|max:255',
+            'venue'                 => 'nullable|string|max:255',
+            'status'                => 'required|in:draft,scheduled,completed,cancelled',
+            'notes'                 => 'nullable|string',
+            'start_time'            => 'nullable|date_format:H:i',
+            'end_time'              => 'nullable|date_format:H:i',
+            'word_of_the_day'       => 'nullable|string|max:100',
+            'word_part_of_speech'   => 'nullable|string|max:50',
+            'word_definition'       => 'nullable|string|max:500',
+            'word_example_sentence' => 'nullable|string|max:500',
         ]);
 
         // Backend validation: all users must belong to meeting's club
@@ -130,12 +149,18 @@ class MeetingEdit extends Component
         }
 
         $this->meeting->update([
-            'meeting_number' => (int) $this->meeting_number,
-            'meeting_date'   => $this->meeting_date,
-            'theme'          => $this->theme ?: null,
-            'venue'          => $this->venue ?: null,
-            'status'         => $this->status,
-            'notes'          => $this->notes ?: null,
+            'meeting_number'        => (int) $this->meeting_number,
+            'meeting_date'          => $this->meeting_date,
+            'theme'                 => $this->theme ?: null,
+            'venue'                 => $this->venue ?: null,
+            'status'                => $this->status,
+            'notes'                 => $this->notes ?: null,
+            'start_time'            => $this->start_time ?: null,
+            'end_time'              => $this->end_time ?: null,
+            'word_of_the_day'       => $this->word_of_the_day ?: null,
+            'word_part_of_speech'   => $this->word_part_of_speech ?: null,
+            'word_definition'       => $this->word_definition ?: null,
+            'word_example_sentence' => $this->word_example_sentence ?: null,
         ]);
 
         // Sync fixed roles
@@ -157,6 +182,7 @@ class MeetingEdit extends Component
                 MeetingSpeaker::create([
                     'meeting_id'  => $this->meeting->id,
                     'user_id'     => $s['user_id'],
+                    'project_id'  => ! empty($s['project_id']) ? $s['project_id'] : null,
                     'slot'        => $slot + 1,
                     'speech_type' => $s['speech_type'] ?? null,
                     'project'     => $s['project'] ?? null,
@@ -200,12 +226,30 @@ class MeetingEdit extends Component
         $this->redirect(route('meetings.show', $this->meeting), navigate: true);
     }
 
+    public function updatedSpeakers($value, $key): void
+    {
+        if (str_ends_with($key, '.project_id')) {
+            $parts = explode('.', $key);
+            $index = (int) ($parts[0] ?? 0);
+
+            if ($value) {
+                $proj = \App\Models\Project::find($value);
+                if ($proj && isset($this->speakers[$index])) {
+                    $this->speakers[$index]['project']     = $proj->name;
+                    $this->speakers[$index]['duration']    = $proj->formattedTiming();
+                    $this->speakers[$index]['speech_type'] = $proj->track ?: 'Pathways Project';
+                }
+            }
+        }
+    }
+
     public function render()
     {
         $club      = $this->meeting->club;
         $members   = User::inClub($this->meeting->club_id)->active()->orderBy('name')->get();
         $roleTypes = MeetingRoleType::active()->get();
+        $projects  = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get();
 
-        return view('livewire.meetings.meeting-edit', compact('club', 'members', 'roleTypes'));
+        return view('livewire.meetings.meeting-edit', compact('club', 'members', 'roleTypes', 'projects'));
     }
 }

@@ -14,6 +14,7 @@ class MeetingSpeaker extends Model
     protected $fillable = [
         'meeting_id',
         'user_id',
+        'project_id',
         'slot',
         'speech_type',
         'project',
@@ -28,6 +29,14 @@ class MeetingSpeaker extends Model
     public function meeting(): BelongsTo
     {
         return $this->belongsTo(Meeting::class);
+    }
+
+    /**
+     * The project associated with this speech.
+     */
+    public function projectModel(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 
     /**

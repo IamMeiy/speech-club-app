@@ -15,10 +15,16 @@ class Meeting extends Model
         'club_id',
         'meeting_number',
         'meeting_date',
+        'start_time',
+        'end_time',
         'theme',
         'venue',
         'status',
         'notes',
+        'word_of_the_day',
+        'word_part_of_speech',
+        'word_definition',
+        'word_example_sentence',
         'created_by',
     ];
 
@@ -77,9 +83,44 @@ class Meeting extends Model
     /**
      * Attendance records for this meeting.
      */
-    public function attendance(): HasMany
+     public function attendance(): HasMany
+     {
+         return $this->hasMany(MeetingAttendance::class)->with('user');
+     }
+
+    /**
+     * Ah-Counter tracking logs for this meeting.
+     */
+    public function ahCounterLogs(): HasMany
     {
-        return $this->hasMany(MeetingAttendance::class)->with('user');
+        return $this->hasMany(MeetingAhCounterLog::class)->with('user');
+    }
+
+    /**
+     * Grammarian tracking logs for this meeting.
+     */
+    public function grammarianLogs(): HasMany
+    {
+        return $this->hasMany(MeetingGrammarianLog::class)->with('user');
+    }
+
+    /**
+     * Whether this meeting has a Word of the Day defined.
+     */
+    public function hasWordOfTheDay(): bool
+    {
+        return ! empty($this->word_of_the_day);
+    }
+
+    /**
+     * Formatted meeting schedule timing string.
+     */
+    public function formattedTime(): ?string
+    {
+        if ($this->start_time && $this->end_time) {
+            return "{$this->start_time} - {$this->end_time}";
+        }
+        return $this->start_time ?: null;
     }
 
     /**
