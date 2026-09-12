@@ -54,6 +54,7 @@ class ProjectIndex extends Component
     public function render()
     {
         $allProjects = Project::active()
+            ->select(['id', 'name', 'slug', 'track', 'level', 'min_minutes', 'max_minutes', 'overview', 'objectives', 'evaluator_notes'])
             ->orderBy('sort_order')
             ->orderBy('level')
             ->orderBy('name')
@@ -73,8 +74,8 @@ class ProjectIndex extends Component
                 'evaluator_notes' => $p->evaluator_notes,
             ]);
 
-        $tracks = Project::active()->distinct()->pluck('track')->sort()->values();
-        $levels = Project::active()->whereNotNull('level')->distinct()->pluck('level')->sort()->values();
+        $tracks = $allProjects->pluck('track')->filter()->unique()->sort()->values();
+        $levels = $allProjects->pluck('level')->filter()->unique()->sort()->values();
 
         $viewingProject = $this->viewingProjectId ? Project::find($this->viewingProjectId) : null;
 

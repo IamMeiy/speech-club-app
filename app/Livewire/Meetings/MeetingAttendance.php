@@ -37,11 +37,11 @@ class MeetingAttendance extends Component
         $this->meeting = $meeting;
 
         // Initialize attendance for all club members
-        $members = User::inClub($meeting->club_id)->active()->orderBy('name')->get();
+        $existing = MeetingAttendanceModel::where('meeting_id', $meeting->id)->pluck('status', 'user_id');
+        $memberIds = User::inClub($meeting->club_id)->active()->pluck('id');
 
-        foreach ($members as $member) {
-            $existing = $meeting->attendance->firstWhere('user_id', $member->id);
-            $this->attendance[$member->id] = $existing?->status ?? 'present';
+        foreach ($memberIds as $id) {
+            $this->attendance[$id] = $existing[$id] ?? 'present';
         }
     }
 
@@ -96,8 +96,12 @@ class MeetingAttendance extends Component
 
     public function render()
     {
-        $members = User::inClub($this->meeting->club_id)->active()->orderBy('name')->get();
-        $meeting = $this->meeting->load(['roles.roleType', 'roles.user', 'attendance.user']);
+        $members = User::inClub($this->meeting->club_id)
+            ->active()
+            ->with('roles:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $meeting = $this->meeting->load(['roles.roleType:id,name', 'roles.user:id,name', 'attendance.user:id,name']);
 
         return view('livewire.meetings.meeting-attendance', compact('meeting', 'members'));
     }

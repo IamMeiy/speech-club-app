@@ -274,9 +274,9 @@ class MeetingCreate extends Component
 
         $activeClubId = $user->isClubUser() ? $user->primaryClub()?->id : $this->selectedClubId;
         $currentClub  = $activeClubId ? Club::find($activeClubId) : null;
-        $members      = $currentClub ? User::inClub($currentClub->id)->active()->orderBy('name')->get() : collect();
-        $roleTypes    = MeetingRoleType::active()->get();
-        $projects     = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get();
+        $members      = $currentClub ? User::inClub($currentClub->id)->active()->orderBy('name')->get(['id', 'name']) : collect();
+        $roleTypes    = MeetingRoleType::active()->get(['id', 'name', 'sort_order']);
+        $projects     = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'level', 'min_minutes', 'max_minutes', 'track']);
 
         return view('livewire.meetings.meeting-create', compact(
             'isGlobal',

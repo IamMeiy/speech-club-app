@@ -27,9 +27,9 @@ class GlobalUserEdit extends Component
         $this->name          = $user->name;
         $this->email         = $user->email;
         $this->phone         = $user->phone ?? '';
-        $this->role          = $user->roles->first()?->name ?? '';
+        $this->role          = $user->roles()->pluck('name')->first() ?? '';
         $this->status        = $user->status;
-        $this->selectedClubs = $user->clubs->pluck('id')->toArray();
+        $this->selectedClubs = $user->clubs()->pluck('clubs.id')->toArray();
     }
 
     public function save(): void
@@ -72,7 +72,7 @@ class GlobalUserEdit extends Component
     public function render()
     {
         $globalRoles = config('speech-club.global_roles', []);
-        $clubs       = Club::where('status', 'active')->orderBy('name')->get();
+        $clubs       = Club::where('status', 'active')->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.global-users.global-user-edit', compact('globalRoles', 'clubs'));
     }

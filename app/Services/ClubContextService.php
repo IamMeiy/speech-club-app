@@ -17,24 +17,43 @@ class ClubContextService
      * - Global user: from session (selected via switcher)
      * - Super Admin: from session or null (all clubs)
      */
+    private ?Club $currentClubMemo = null;
+    private bool $currentClubChecked = false;
+    private ?\Illuminate\Support\Collection $availableClubsMemo = null;
+
+    /**
+     * Get the current active club for the authenticated user.
+     * - Club user: always their single club
+     * - Global user: from session (selected via switcher)
+     * - Super Admin: from session or null (all clubs)
+     */
     public function currentClub(): ?Club
     {
+        if ($this->currentClubChecked) {
+            return $this->currentClubMemo;
+        }
+
         /** @var User $user */
         $user = Auth::user();
 
         if (! $user) {
+            $this->currentClubChecked = true;
             return null;
         }
 
         // Super Admin
         if ($user->isSuperAdmin()) {
             $clubId = Session::get(self::SESSION_KEY);
-            return $clubId ? Club::find($clubId) : null;
+            $this->currentClubMemo = $clubId ? Club::find($clubId) : null;
+            $this->currentClubChecked = true;
+            return $this->currentClubMemo;
         }
 
         // Club-scoped user: always their own club
         if ($user->isClubUser()) {
-            return $user->primaryClub();
+            $this->currentClubMemo = $user->primaryClub();
+            $this->currentClubChecked = true;
+            return $this->currentClubMemo;
         }
 
         // Global user: from session
@@ -43,10 +62,13 @@ class ClubContextService
             // Make sure they still have access
             $club = Club::find($clubId);
             if ($club && $this->canAccess($user, $club)) {
-                return $club;
+                $this->currentClubMemo = $club;
+                $this->currentClubChecked = true;
+                return $this->currentClubMemo;
             }
         }
 
+        $this->currentClubChecked = true;
         return null;
     }
 
@@ -63,6 +85,10 @@ class ClubContextService
      */
     public function setCurrentClub(?int $clubId): void
     {
+        $this->currentClubChecked = false;
+        $this->currentClubMemo = null;
+        $this->availableClubsMemo = null;
+
         if ($clubId === null) {
             Session::forget(self::SESSION_KEY);
         } else {
@@ -75,20 +101,29 @@ class ClubContextService
      */
     public function availableClubs(): \Illuminate\Support\Collection
     {
+        if ($this->availableClubsMemo !== null) {
+            return $this->availableClubsMemo;
+        }
+
         /** @var User $user */
         $user = Auth::user();
 
         if (! $user) {
-            return collect();
+            return $this->availableClubsMemo = collect();
         }
 
         // Super Admin can see all active clubs
         if ($user->isSuperAdmin()) {
-            return Club::where('status', 'active')->orderBy('name')->get();
+            return $this->availableClubsMemo = Club::where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name', 'code', 'status']);
         }
 
         // Global user sees only their assigned clubs
-        return $user->clubs()->where('clubs.status', 'active')->orderBy('name')->get();
+        return $this->availableClubsMemo = $user->clubs()
+            ->where('clubs.status', 'active')
+            ->orderBy('name')
+            ->get(['clubs.id', 'clubs.name', 'clubs.code', 'clubs.status']);
     }
 
     /**
@@ -137,9 +172,9 @@ class ClubContextService
 
         // For global users, auto-select if only one club
         if (! $user->isSuperAdmin()) {
-            $clubs = $user->clubs()->where('clubs.status', 'active')->get();
-            if ($clubs->count() === 1) {
-                Session::put(self::SESSION_KEY, $clubs->first()->id);
+            $clubIds = $user->clubs()->where('clubs.status', 'active')->pluck('clubs.id');
+            if ($clubIds->count() === 1) {
+                Session::put(self::SESSION_KEY, $clubIds->first());
             }
         }
     }

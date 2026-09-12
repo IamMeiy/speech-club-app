@@ -16,7 +16,7 @@ class ClubAccessService
      * Get all users belonging to a specific club (for dropdowns, etc.).
      * These are active, non-deleted users.
      */
-    public function getClubUsers(int $clubId, bool $activeOnly = true): Collection
+    public function getClubUsers(int $clubId, bool $activeOnly = true, array $columns = ['id', 'name']): Collection
     {
         $query = User::inClub($clubId)->orderBy('name');
 
@@ -24,7 +24,7 @@ class ClubAccessService
             $query->active();
         }
 
-        return $query->get();
+        return $query->get($columns);
     }
 
     /**
@@ -59,12 +59,13 @@ class ClubAccessService
     /**
      * Get clubs the current user can manage.
      */
-    public function getAccessibleClubs(User $user): Collection
+    public function getAccessibleClubs(User $user, array $columns = ['id', 'name', 'code']): Collection
     {
         if ($user->isSuperAdmin()) {
-            return Club::where('status', 'active')->orderBy('name')->get();
+            return Club::where('status', 'active')->orderBy('name')->get($columns);
         }
 
-        return $user->clubs()->where('clubs.status', 'active')->orderBy('name')->get();
+        $prefixed = array_map(fn ($c) => 'clubs.' . $c, $columns);
+        return $user->clubs()->where('clubs.status', 'active')->orderBy('name')->get($prefixed);
     }
 }

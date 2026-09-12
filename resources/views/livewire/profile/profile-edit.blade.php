@@ -43,14 +43,6 @@
         {{-- ================================================================ --}}
         {{-- Speaking Journey & Milestone Badges --}}
         {{-- ================================================================ --}}
-        @php
-            $speechesCount = $user->speechesCount();
-            $ttmCount = $user->tableTopicsCount();
-            $evalsCount = $user->evaluationsCount();
-            $rolesCount = $user->meetingRolesCount();
-            $badges = $user->getMilestoneBadges();
-            $unlockedCount = collect($badges)->where('unlocked', true)->count();
-        @endphp
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div>

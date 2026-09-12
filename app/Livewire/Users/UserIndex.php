@@ -46,7 +46,7 @@ class UserIndex extends Component
                 abort(403);
             }
         } elseif (! $currentUser->isSuperAdmin()) {
-            $commonClubs = $currentUser->clubs()->whereIn('clubs.id', $user->clubs->pluck('id'))->exists();
+            $commonClubs = $currentUser->clubs()->whereIn('clubs.id', $user->clubs()->pluck('clubs.id'))->exists();
             if (! $commonClubs) {
                 abort(403);
             }
@@ -62,10 +62,11 @@ class UserIndex extends Component
         $user = auth()->user();
         $club = $clubContext->currentClub();
 
-        $query = User::with('roles', 'clubs')
+        $query = User::select(['id', 'name', 'email', 'phone', 'status', 'created_at'])
+            ->with(['roles:id,name', 'clubs:id,name'])
             ->when($club, fn ($q) => $q->inClub($club->id))
             ->when(! $club && ! $user->isSuperAdmin(), function ($q) use ($user) {
-                $q->whereHas('clubs', fn ($c) => $c->whereIn('clubs.id', $user->clubs->pluck('id')));
+                $q->whereHas('clubs', fn ($c) => $c->whereIn('clubs.id', $user->clubs()->pluck('clubs.id')));
             })
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', "%{$this->search}%")

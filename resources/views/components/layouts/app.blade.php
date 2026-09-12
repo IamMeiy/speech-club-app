@@ -293,7 +293,7 @@
                     <div x-show="!sidebarCollapsed" class="flex-1 min-w-0">
                         <p class="text-white text-xs font-semibold truncate">{{ auth()->user()->name }}</p>
                         <p class="text-slate-400 text-[11px] truncate">
-                            {{ auth()->user()->roles->first()?->name ?? 'User' }}</p>
+                            {{ auth()->user()->primaryRoleName() }}</p>
                     </div>
                 </a>
 
@@ -444,7 +444,7 @@
                                 x-transition:leave-end="transform opacity-0 scale-95"
                                 class="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-xl z-50 py-1.5 overflow-hidden"
                                 style="display: none;">
-                                @if (auth()->user()->isSuperAdmin() || auth()->user()->clubs->count() > 1)
+                                @if (auth()->user()->isSuperAdmin() || $availableClubs->count() > 1)
                                     <form method="POST" action="{{ route('switch-club') }}">
                                         @csrf
                                         <input type="hidden" name="club_id" value="">

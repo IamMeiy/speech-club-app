@@ -34,17 +34,17 @@ class MeetingReport extends Component
         $theme = in_array($theme, $validThemes, true) ? $theme : 'indigo';
 
         $meeting = $this->meeting->load([
-            'club',
-            'roles.roleType',
-            'roles.user',
-            'speakers.user',
-            'speakers.projectModel',
-            'speakers.evaluation.evaluator',
-            'ttmSpeakers.user',
-            'evaluations.speaker.user',
-            'evaluations.evaluator',
-            'attendance.user',
-            'timerLogs.user',
+            'club:id,name,code',
+            'roles.roleType:id,name,sort_order',
+            'roles.user:id,name,email',
+            'speakers.user:id,name,email',
+            'speakers.projectModel:id,name,track,level,min_minutes,max_minutes',
+            'speakers.evaluation.evaluator:id,name,email',
+            'ttmSpeakers.user:id,name,email',
+            'evaluations.speaker.user:id,name,email',
+            'evaluations.evaluator:id,name,email',
+            'attendance.user:id,name,email',
+            'timerLogs.user:id,name',
         ]);
 
         $stats = [
@@ -75,17 +75,17 @@ class MeetingReport extends Component
     public function render()
     {
         $meeting = $this->meeting->load([
-            'club',
-            'roles.roleType',
-            'roles.user',
-            'speakers.user',
-            'speakers.projectModel',
-            'speakers.evaluation.evaluator',
-            'ttmSpeakers.user',
-            'evaluations.speaker.user',
-            'evaluations.evaluator',
-            'attendance.user',
-            'timerLogs.user',
+            'club:id,name,code',
+            'roles.roleType:id,name,sort_order',
+            'roles.user:id,name,email',
+            'speakers.user:id,name,email',
+            'speakers.projectModel:id,name,track,level,min_minutes,max_minutes',
+            'speakers.evaluation.evaluator:id,name,email',
+            'ttmSpeakers.user:id,name,email',
+            'evaluations.speaker.user:id,name,email',
+            'evaluations.evaluator:id,name,email',
+            'attendance.user:id,name,email',
+            'timerLogs.user:id,name',
         ]);
 
         // Attendance stats

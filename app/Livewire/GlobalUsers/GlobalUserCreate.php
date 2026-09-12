@@ -61,7 +61,7 @@ class GlobalUserCreate extends Component
     public function render()
     {
         $globalRoles = config('speech-club.global_roles', []);
-        $clubs       = Club::where('status', 'active')->orderBy('name')->get();
+        $clubs       = Club::where('status', 'active')->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.global-users.global-user-create', compact('globalRoles', 'clubs'));
     }

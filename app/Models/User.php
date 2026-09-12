@@ -113,12 +113,28 @@ class User extends Authenticatable
         // Club roles are specific roles that are tied to one club:
         // President, VPE, VPM, VPPR, Secretary, Treasurer, SAA, Member
         $clubRoleNames = config('speech-club.club_roles', []);
-        foreach ($this->roles as $role) {
-            if (in_array($role->name, $clubRoleNames)) {
-                return true;
+        if ($this->relationLoaded('roles')) {
+            foreach ($this->roles as $role) {
+                if (in_array($role->name, $clubRoleNames)) {
+                    return true;
+                }
             }
+            return false;
         }
-        return false;
+
+        return $this->roles()->whereIn('name', $clubRoleNames)->exists();
+    }
+
+    /**
+     * Get primary role name without redundant model hydration.
+     */
+    public function primaryRoleName(): string
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->first()?->name ?? 'User';
+        }
+
+        return $this->roles()->pluck('name')->first() ?? 'User';
     }
 
     /**
@@ -137,12 +153,24 @@ class User extends Authenticatable
         return $this->hasRole('Super Admin');
     }
 
+    private ?Club $_primaryClubMemo = null;
+    private bool $_primaryClubChecked = false;
+
     /**
      * Get the user's primary club (for club-scoped users, they belong to one club).
      */
     public function primaryClub(): ?Club
     {
-        return $this->clubs()->first();
+        if ($this->relationLoaded('clubs')) {
+            return $this->clubs->first();
+        }
+
+        if (! $this->_primaryClubChecked) {
+            $this->_primaryClubMemo = $this->clubs()->first();
+            $this->_primaryClubChecked = true;
+        }
+
+        return $this->_primaryClubMemo;
     }
 
     /**
@@ -177,8 +205,10 @@ class User extends Authenticatable
     public function speechesCount(?int $clubId = null): int
     {
         return $this->meetingSpeakerSlots()
-            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
-            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->whereHas('meeting', function ($m) use ($clubId) {
+                $m->whereIn('status', ['scheduled', 'completed'])
+                  ->when($clubId, fn ($q) => $q->where('club_id', $clubId));
+            })
             ->count();
     }
 
@@ -188,8 +218,10 @@ class User extends Authenticatable
     public function tableTopicsCount(?int $clubId = null): int
     {
         return $this->meetingTtmSlots()
-            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
-            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->whereHas('meeting', function ($m) use ($clubId) {
+                $m->whereIn('status', ['scheduled', 'completed'])
+                  ->when($clubId, fn ($q) => $q->where('club_id', $clubId));
+            })
             ->count();
     }
 
@@ -199,8 +231,10 @@ class User extends Authenticatable
     public function evaluationsCount(?int $clubId = null): int
     {
         return $this->evaluations()
-            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
-            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->whereHas('meeting', function ($m) use ($clubId) {
+                $m->whereIn('status', ['scheduled', 'completed'])
+                  ->when($clubId, fn ($q) => $q->where('club_id', $clubId));
+            })
             ->count();
     }
 
@@ -210,21 +244,23 @@ class User extends Authenticatable
     public function meetingRolesCount(?int $clubId = null): int
     {
         return $this->meetingRoles()
-            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
-            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->whereHas('meeting', function ($m) use ($clubId) {
+                $m->whereIn('status', ['scheduled', 'completed'])
+                  ->when($clubId, fn ($q) => $q->where('club_id', $clubId));
+            })
             ->count();
     }
 
     /**
      * Milestone badges calculation.
      */
-    public function getMilestoneBadges(?int $clubId = null): array
+    public function getMilestoneBadges(?int $clubId = null, ?array $counts = null): array
     {
-        $speeches = $this->speechesCount($clubId);
-        $ttm = $this->tableTopicsCount($clubId);
-        $evals = $this->evaluationsCount($clubId);
-        $roles = $this->meetingRolesCount($clubId);
-        $meetingsAttended = $this->attendance()
+        $speeches = $counts['speeches'] ?? $this->speechesCount($clubId);
+        $ttm = $counts['table_topics'] ?? $this->tableTopicsCount($clubId);
+        $evals = $counts['evaluations'] ?? $this->evaluationsCount($clubId);
+        $roles = $counts['roles'] ?? $this->meetingRolesCount($clubId);
+        $meetingsAttended = $counts['meetings_attended'] ?? $this->attendance()
             ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
             ->whereIn('status', ['present', 'late'])
             ->count();

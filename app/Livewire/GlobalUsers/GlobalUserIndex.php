@@ -40,7 +40,8 @@ class GlobalUserIndex extends Component
     {
         $globalRoles = config('speech-club.global_roles', []);
 
-        $users = User::with('roles', 'clubs')
+        $users = User::select(['id', 'name', 'email', 'phone', 'status', 'created_at'])
+            ->with(['roles:id,name', 'clubs:id,name'])
             ->whereHas('roles', fn ($q) => $q->whereIn('name', $globalRoles))
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', "%{$this->search}%")

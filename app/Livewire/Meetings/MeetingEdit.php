@@ -72,8 +72,16 @@ class MeetingEdit extends Component
             ->map(fn ($u) => ['id' => (string) $u->id, 'name' => $u->name])
             ->toArray();
 
+        // Load meeting relations efficiently with column constraints
+        $meeting->load([
+            'roles:id,meeting_id,meeting_role_type_id,user_id',
+            'speakers:id,meeting_id,user_id,project_id,topic,speech_type,project,duration',
+            'ttmSpeakers:id,meeting_id,user_id,topic,duration',
+            'evaluations:id,meeting_id,speaker_id,evaluator_user_id',
+        ]);
+
         // Load role assignments
-        $roleTypes = MeetingRoleType::active()->get();
+        $roleTypes = MeetingRoleType::active()->get(['id']);
         foreach ($roleTypes as $roleType) {
             $existingRole = $meeting->roles->firstWhere('meeting_role_type_id', $roleType->id);
             $this->roleAssignments[$roleType->id] = $existingRole?->user_id ? (string) $existingRole->user_id : '';
@@ -246,9 +254,9 @@ class MeetingEdit extends Component
     public function render()
     {
         $club      = $this->meeting->club;
-        $members   = User::inClub($this->meeting->club_id)->active()->orderBy('name')->get();
-        $roleTypes = MeetingRoleType::active()->get();
-        $projects  = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get();
+        $members   = User::inClub($this->meeting->club_id)->active()->orderBy('name')->get(['id', 'name']);
+        $roleTypes = MeetingRoleType::active()->get(['id', 'name', 'sort_order']);
+        $projects  = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'level', 'min_minutes', 'max_minutes', 'track']);
 
         return view('livewire.meetings.meeting-edit', compact('club', 'members', 'roleTypes', 'projects'));
     }
