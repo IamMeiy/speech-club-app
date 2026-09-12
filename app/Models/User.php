@@ -170,4 +170,146 @@ class User extends Authenticatable
             $q->where('clubs.id', $clubId);
         });
     }
+
+    /**
+     * Total prepared speeches count.
+     */
+    public function speechesCount(?int $clubId = null): int
+    {
+        return $this->meetingSpeakerSlots()
+            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
+            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->count();
+    }
+
+    /**
+     * Total table topics speeches count.
+     */
+    public function tableTopicsCount(?int $clubId = null): int
+    {
+        return $this->meetingTtmSlots()
+            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
+            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->count();
+    }
+
+    /**
+     * Total speech evaluations count.
+     */
+    public function evaluationsCount(?int $clubId = null): int
+    {
+        return $this->evaluations()
+            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
+            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->count();
+    }
+
+    /**
+     * Total meeting roles count.
+     */
+    public function meetingRolesCount(?int $clubId = null): int
+    {
+        return $this->meetingRoles()
+            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
+            ->whereHas('meeting', fn ($m) => $m->whereIn('status', ['scheduled', 'completed']))
+            ->count();
+    }
+
+    /**
+     * Milestone badges calculation.
+     */
+    public function getMilestoneBadges(?int $clubId = null): array
+    {
+        $speeches = $this->speechesCount($clubId);
+        $ttm = $this->tableTopicsCount($clubId);
+        $evals = $this->evaluationsCount($clubId);
+        $roles = $this->meetingRolesCount($clubId);
+        $meetingsAttended = $this->attendance()
+            ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
+            ->whereIn('status', ['present', 'late'])
+            ->count();
+
+        return [
+            [
+                'id' => 'icebreaker',
+                'name' => 'Icebreaker Achieved',
+                'category' => 'Prepared Speaking',
+                'description' => 'Delivered your first prepared speech to the club.',
+                'unlocked' => $speeches >= 1,
+                'progress' => min($speeches, 1),
+                'target' => 1,
+                'color' => 'indigo',
+            ],
+            [
+                'id' => 'bronze_speaker',
+                'name' => 'Bronze Speaker',
+                'category' => 'Prepared Speaking',
+                'description' => 'Completed 3 prepared project speeches.',
+                'unlocked' => $speeches >= 3,
+                'progress' => min($speeches, 3),
+                'target' => 3,
+                'color' => 'amber',
+            ],
+            [
+                'id' => 'silver_speaker',
+                'name' => 'Silver Speaker',
+                'category' => 'Prepared Speaking',
+                'description' => 'Delivered 5 project speeches with peer feedback.',
+                'unlocked' => $speeches >= 5,
+                'progress' => min($speeches, 5),
+                'target' => 5,
+                'color' => 'cyan',
+            ],
+            [
+                'id' => 'gold_speaker',
+                'name' => 'Competent Communicator',
+                'category' => 'Mastery',
+                'description' => 'Mastered 10 prepared speech projects.',
+                'unlocked' => $speeches >= 10,
+                'progress' => min($speeches, 10),
+                'target' => 10,
+                'color' => 'purple',
+            ],
+            [
+                'id' => 'impromptu_prodigy',
+                'name' => 'Impromptu Prodigy',
+                'category' => 'Table Topics',
+                'description' => 'Tackled 5 impromptu Table Topics challenges.',
+                'unlocked' => $ttm >= 5,
+                'progress' => min($ttm, 5),
+                'target' => 5,
+                'color' => 'rose',
+            ],
+            [
+                'id' => 'master_evaluator',
+                'name' => 'Master Evaluator',
+                'category' => 'Evaluation',
+                'description' => 'Delivered constructive evaluations for 5 speakers.',
+                'unlocked' => $evals >= 5,
+                'progress' => min($evals, 5),
+                'target' => 5,
+                'color' => 'emerald',
+            ],
+            [
+                'id' => 'club_pillar',
+                'name' => 'Club Pillar',
+                'category' => 'Leadership',
+                'description' => 'Took up 10 meeting facilitator & leadership roles.',
+                'unlocked' => $roles >= 10,
+                'progress' => min($roles, 10),
+                'target' => 10,
+                'color' => 'blue',
+            ],
+            [
+                'id' => 'loyal_attendee',
+                'name' => 'Dedicated Attendee',
+                'category' => 'Commitment',
+                'description' => 'Attended at least 5 club sessions.',
+                'unlocked' => $meetingsAttended >= 5,
+                'progress' => min($meetingsAttended, 5),
+                'target' => 5,
+                'color' => 'emerald',
+            ],
+        ];
+    }
 }

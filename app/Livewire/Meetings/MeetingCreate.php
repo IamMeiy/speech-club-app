@@ -32,13 +32,19 @@ class MeetingCreate extends Component
     public string $venue          = '';
     public string $status         = 'scheduled';
     public string $notes          = '';
+    public string $start_time     = '';
+    public string $end_time       = '';
+    public string $word_of_the_day = '';
+    public string $word_part_of_speech = '';
+    public string $word_definition = '';
+    public string $word_example_sentence = '';
 
     // Fixed role assignments: keyed by meeting_role_type_id
     public array $roleAssignments = [];
 
     // Dynamic speakers
     public array $speakers = [
-        ['user_id' => '', 'topic' => '', 'speech_type' => '', 'project' => '', 'duration' => ''],
+        ['user_id' => '', 'project_id' => '', 'topic' => '', 'speech_type' => '', 'project' => '', 'duration' => ''],
     ];
 
     // Dynamic TTM speakers
@@ -138,12 +144,18 @@ class MeetingCreate extends Component
         }
 
         $this->validate([
-            'meeting_date'   => 'required|date',
-            'meeting_number' => 'required|integer|min:1|unique:meetings,meeting_number,NULL,id,club_id,' . $club->id,
-            'theme'          => 'nullable|string|max:255',
-            'venue'          => 'nullable|string|max:255',
-            'status'         => 'required|in:draft,scheduled,completed,cancelled',
-            'notes'          => 'nullable|string',
+            'meeting_date'          => 'required|date',
+            'meeting_number'        => 'required|integer|min:1|unique:meetings,meeting_number,NULL,id,club_id,' . $club->id,
+            'theme'                 => 'nullable|string|max:255',
+            'venue'                 => 'nullable|string|max:255',
+            'status'                => 'required|in:draft,scheduled,completed,cancelled',
+            'notes'                 => 'nullable|string',
+            'start_time'            => 'nullable|date_format:H:i',
+            'end_time'              => 'nullable|date_format:H:i',
+            'word_of_the_day'       => 'nullable|string|max:100',
+            'word_part_of_speech'   => 'nullable|string|max:50',
+            'word_definition'       => 'nullable|string|max:500',
+            'word_example_sentence' => 'nullable|string|max:500',
         ]);
 
         // Validate all assigned users belong to this club
@@ -161,14 +173,20 @@ class MeetingCreate extends Component
 
         // Create meeting
         $meeting = Meeting::create([
-            'club_id'        => $club->id,
-            'meeting_number' => (int) $this->meeting_number,
-            'meeting_date'   => $this->meeting_date,
-            'theme'          => $this->theme ?: null,
-            'venue'          => $this->venue ?: null,
-            'status'         => $this->status,
-            'notes'          => $this->notes ?: null,
-            'created_by'     => auth()->id(),
+            'club_id'               => $club->id,
+            'meeting_number'        => (int) $this->meeting_number,
+            'meeting_date'          => $this->meeting_date,
+            'theme'                 => $this->theme ?: null,
+            'venue'                 => $this->venue ?: null,
+            'status'                => $this->status,
+            'notes'                 => $this->notes ?: null,
+            'start_time'            => $this->start_time ?: null,
+            'end_time'              => $this->end_time ?: null,
+            'word_of_the_day'       => $this->word_of_the_day ?: null,
+            'word_part_of_speech'   => $this->word_part_of_speech ?: null,
+            'word_definition'       => $this->word_definition ?: null,
+            'word_example_sentence' => $this->word_example_sentence ?: null,
+            'created_by'            => auth()->id(),
         ]);
 
         // Save fixed role assignments
@@ -188,6 +206,7 @@ class MeetingCreate extends Component
                 MeetingSpeaker::create([
                     'meeting_id'  => $meeting->id,
                     'user_id'     => $speakerData['user_id'],
+                    'project_id'  => ! empty($speakerData['project_id']) ? $speakerData['project_id'] : null,
                     'slot'        => $slot + 1,
                     'speech_type' => $speakerData['speech_type'] ?? null,
                     'project'     => $speakerData['project'] ?? null,
@@ -229,6 +248,24 @@ class MeetingCreate extends Component
         $this->redirect(route('meetings.show', $meeting), navigate: true);
     }
 
+    public function updatedSpeakers($value, $key): void
+    {
+        // Handle speakers.{index}.project_id changes
+        if (str_ends_with($key, '.project_id')) {
+            $parts = explode('.', $key);
+            $index = (int) ($parts[0] ?? 0);
+
+            if ($value) {
+                $proj = \App\Models\Project::find($value);
+                if ($proj && isset($this->speakers[$index])) {
+                    $this->speakers[$index]['project']     = $proj->name;
+                    $this->speakers[$index]['duration']    = $proj->formattedTiming();
+                    $this->speakers[$index]['speech_type'] = $proj->track ?: 'Pathways Project';
+                }
+            }
+        }
+    }
+
     public function render(ClubAccessService $access)
     {
         $user            = auth()->user();
@@ -239,13 +276,15 @@ class MeetingCreate extends Component
         $currentClub  = $activeClubId ? Club::find($activeClubId) : null;
         $members      = $currentClub ? User::inClub($currentClub->id)->active()->orderBy('name')->get() : collect();
         $roleTypes    = MeetingRoleType::active()->get();
+        $projects     = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get();
 
         return view('livewire.meetings.meeting-create', compact(
             'isGlobal',
             'accessibleClubs',
             'currentClub',
             'members',
-            'roleTypes'
+            'roleTypes',
+            'projects'
         ));
     }
 }

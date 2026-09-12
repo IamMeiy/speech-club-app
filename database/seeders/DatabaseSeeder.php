@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             ClubSeeder::class,
             MeetingRoleTypeSeeder::class,
+            ProjectSeeder::class,
             DemoUsersSeeder::class,
             RealisticWorkflowSeeder::class,
         ]);
