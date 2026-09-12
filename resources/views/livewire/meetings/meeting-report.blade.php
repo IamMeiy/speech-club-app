@@ -21,7 +21,7 @@
             </button>
 
             {{-- Download PDF Button --}}
-            <button wire:click="downloadPdf" wire:loading.attr="disabled"
+            <button x-on:click="$wire.downloadPdf(currentTheme)" wire:loading.attr="disabled"
                     class="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-md shadow-primary-600/25 flex items-center gap-2 active:scale-[0.98]">
                 {{-- Normal Download Icon --}}
                 <svg wire:loading.remove wire:target="downloadPdf" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

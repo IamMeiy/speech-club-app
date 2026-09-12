@@ -1,3 +1,44 @@
+@php
+    $themePalettes = [
+        'indigo' => [
+            '50' => '#eef2ff', '100' => '#e0e7ff', '200' => '#c7d2fe', '300' => '#a5b4fc',
+            '400' => '#818cf8', '500' => '#6366f1', '600' => '#4f46e5', '700' => '#4338ca',
+            '800' => '#3730a3', '900' => '#312e81',
+        ],
+        'emerald' => [
+            '50' => '#ecfdf5', '100' => '#d1fae5', '200' => '#a7f3d0', '300' => '#6ee7b7',
+            '400' => '#34d399', '500' => '#10b981', '600' => '#059669', '700' => '#047857',
+            '800' => '#065f46', '900' => '#064e3b',
+        ],
+        'blue' => [
+            '50' => '#eff6ff', '100' => '#dbeafe', '200' => '#bfdbfe', '300' => '#93c5fd',
+            '400' => '#60a5fa', '500' => '#3b82f6', '600' => '#2563eb', '700' => '#1d4ed8',
+            '800' => '#1e40af', '900' => '#1e3a8a',
+        ],
+        'purple' => [
+            '50' => '#faf5ff', '100' => '#f3e8ff', '200' => '#e9d5ff', '300' => '#d8b4fe',
+            '400' => '#c084fc', '500' => '#a855f7', '600' => '#9333ea', '700' => '#7e22ce',
+            '800' => '#6b21a8', '900' => '#581c87',
+        ],
+        'rose' => [
+            '50' => '#fff1f2', '100' => '#ffe4e6', '200' => '#fecdd3', '300' => '#fda4af',
+            '400' => '#fb7185', '500' => '#f43f5e', '600' => '#e11d48', '700' => '#be123c',
+            '800' => '#9f1239', '900' => '#881337',
+        ],
+        'amber' => [
+            '50' => '#fffbeb', '100' => '#fef3c7', '200' => '#fde68a', '300' => '#fcd34d',
+            '400' => '#fbbf24', '500' => '#f59e0b', '600' => '#d97706', '700' => '#b45309',
+            '800' => '#92400e', '900' => '#78350f',
+        ],
+        'cyan' => [
+            '50' => '#ecfeff', '100' => '#cffafe', '200' => '#a5f3fc', '300' => '#67e8f9',
+            '400' => '#22d3ee', '500' => '#06b6d4', '600' => '#0891b2', '700' => '#0e7490',
+            '800' => '#155e75', '900' => '#164e63',
+        ],
+    ];
+
+    $th = $themePalettes[$theme ?? 'indigo'] ?? $themePalettes['indigo'];
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,12 +72,20 @@
             vertical-align: middle;
         }
 
+        .top-accent-bar {
+            height: 4px;
+            background: {{ $th['600'] }};
+            border-radius: 2px;
+            margin-bottom: 14px;
+        }
+
         .brand-badge {
             display: inline-block;
-            background: #e0e7ff;
-            color: #4338ca;
+            background: {{ $th['50'] }};
+            color: {{ $th['700'] }};
+            border: 1px solid {{ $th['200'] }};
             font-weight: bold;
-            font-size: 9px;
+            font-size: 8.5px;
             letter-spacing: 0.8px;
             text-transform: uppercase;
             padding: 3px 8px;
@@ -67,13 +116,13 @@
 
         .meeting-num-pill {
             display: inline-block;
-            background: #4f46e5;
+            background: {{ $th['600'] }};
             color: #ffffff;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 800;
             padding: 8px 16px;
             border-radius: 8px;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.3px;
         }
 
         /* ------------------------------------------------------------- */
@@ -128,12 +177,36 @@
         .status-draft { background: #f1f5f9; color: #475569; }
         .status-cancelled { background: #ffe4e6; color: #be123c; }
 
+        .att-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .att-present { background: #dcfce7; color: #15803d; }
+        .att-late    { background: #fef3c7; color: #b45309; }
+        .att-excused { background: #f1f5f9; color: #475569; }
+        .att-absent  { background: #ffe4e6; color: #be123c; }
+
+        .att-icon {
+            font-family: 'DejaVu Sans', sans-serif;
+            font-weight: normal;
+            font-size: 9.5px;
+            margin-right: 3px;
+        }
+
         /* ------------------------------------------------------------- */
         /* Theme Box */
         /* ------------------------------------------------------------- */
         .theme-box {
-            background: #eff6ff;
-            border-left: 4px solid #3b82f6;
+            background: {{ $th['50'] }};
+            border-left: 4px solid {{ $th['500'] }};
+            border-top: 1px solid {{ $th['100'] }};
+            border-right: 1px solid {{ $th['100'] }};
+            border-bottom: 1px solid {{ $th['100'] }};
             padding: 9px 14px;
             border-radius: 0 6px 6px 0;
             margin-bottom: 16px;
@@ -143,15 +216,16 @@
             font-size: 8.5px;
             text-transform: uppercase;
             letter-spacing: 0.6px;
-            color: #2563eb;
+            color: {{ $th['600'] }};
             font-weight: 700;
         }
 
         .theme-box-title {
             font-size: 13px;
             font-weight: 700;
-            color: #1e3a8a;
+            color: {{ $th['900'] }};
             margin-top: 2px;
+            font-style: italic;
         }
 
         /* ------------------------------------------------------------- */
@@ -176,7 +250,7 @@
         .stat-card.absent { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
         .stat-card.late { background: #fffbeb; border-color: #fde68a; color: #b45309; }
         .stat-card.excused { background: #f8fafc; border-color: #e2e8f0; color: #475569; }
-        .stat-card.rate { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+        .stat-card.rate { background: {{ $th['50'] }}; border-color: {{ $th['200'] }}; color: {{ $th['700'] }}; }
 
         .stat-num {
             font-size: 16px;
@@ -205,9 +279,9 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.7px;
-            color: #334155;
+            color: #1e293b;
             padding-bottom: 5px;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid {{ $th['200'] }};
             margin-bottom: 8px;
         }
 
@@ -261,8 +335,9 @@
 
         .slot-badge {
             display: inline-block;
-            background: #f3e8ff;
-            color: #7e22ce;
+            background: {{ $th['50'] }};
+            color: {{ $th['700'] }};
+            border: 1px solid {{ $th['200'] }};
             font-weight: 800;
             font-size: 9px;
             padding: 2px 6px;
@@ -296,7 +371,7 @@
         .doc-footer {
             margin-top: 24px;
             padding-top: 10px;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid {{ $th['100'] }};
             font-size: 9px;
             color: #94a3b8;
             width: 100%;
@@ -313,6 +388,8 @@
     </style>
 </head>
 <body>
+
+    <div class="top-accent-bar"></div>
 
     {{-- Document Header --}}
     <table class="header-table">
@@ -469,7 +546,7 @@
                     @foreach($meeting->speakers as $speaker)
                     <tr>
                         <td class="user-name">{{ $speaker->user->name }}</td>
-                        <td style="color: #4338ca; font-weight: 600;">{{ $speaker->speech_type ?: 'Prepared Speech' }}</td>
+                        <td style="color: {{ $th['700'] }}; font-weight: 600;">{{ $speaker->speech_type ?: 'Prepared Speech' }}</td>
                         <td style="color: #0f172a; font-weight: 600;">{{ $speaker->topic ? '"' . $speaker->topic . '"' : '—' }}</td>
                         <td style="color: #059669; font-weight: 700;">
                             {{ $speaker->evaluation ? $speaker->evaluation->evaluator->name : 'Not Assigned' }}
@@ -500,13 +577,13 @@
                     <td style="color: #64748b;">{{ $att->user->email }}</td>
                     <td>
                         @if($att->status === 'present')
-                            <span style="color: #15803d; font-weight: 700;">✓ Present</span>
+                            <span class="att-badge att-present"><span class="att-icon">&#10003;</span> Present</span>
                         @elseif($att->status === 'late')
-                            <span style="color: #b45309; font-weight: 700;">⏱ Late</span>
+                            <span class="att-badge att-late"><span class="att-icon">&#9679;</span> Late</span>
                         @elseif($att->status === 'excused')
-                            <span style="color: #475569; font-weight: 600;">— Excused</span>
+                            <span class="att-badge att-excused"><span class="att-icon">&mdash;</span> Excused</span>
                         @else
-                            <span style="color: #be123c; font-weight: 700;">✗ Absent</span>
+                            <span class="att-badge att-absent"><span class="att-icon">&#10007;</span> Absent</span>
                         @endif
                     </td>
                 </tr>
@@ -529,7 +606,7 @@
         <table>
             <tr>
                 <td style="text-align: left;">
-                    Generated by Speech Club Management System · {{ $meeting->club->name }}
+                    Generated by Speech Club Management System &bull; {{ $meeting->club->name }}
                 </td>
                 <td style="text-align: right;">
                     Generated on {{ now()->format('d M Y, h:i A') }}
