@@ -23,12 +23,24 @@ class Dashboard extends Component
         // Club-scoped dashboard data
         if ($currentClub) {
             $memberCount      = $currentClub->users()->where('users.status', 'active')->count();
-            $upcomingMeetings = Meeting::forClub($currentClub->id)->upcoming()->limit(3)->get();
-            $recentMeetings   = Meeting::forClub($currentClub->id)->past()->limit(5)->get();
+            $upcomingMeetings = Meeting::select(['id', 'club_id', 'meeting_number', 'meeting_date', 'start_time', 'end_time', 'theme', 'status', 'venue'])
+                ->forClub($currentClub->id)
+                ->upcoming()
+                ->limit(3)
+                ->get();
+            $recentMeetings   = Meeting::select(['id', 'club_id', 'meeting_number', 'meeting_date', 'start_time', 'end_time', 'theme', 'status', 'venue'])
+                ->forClub($currentClub->id)
+                ->past()
+                ->limit(5)
+                ->get();
             $totalMeetings    = Meeting::forClub($currentClub->id)->count();
 
             // Last meeting attendance
-            $lastMeeting    = Meeting::forClub($currentClub->id)->where('status', 'completed')->latest('meeting_date')->first();
+            $lastMeeting    = Meeting::select(['id', 'club_id', 'meeting_number', 'meeting_date', 'status'])
+                ->forClub($currentClub->id)
+                ->where('status', 'completed')
+                ->latest('meeting_date')
+                ->first();
             $lastAttendance = $lastMeeting
                 ? $lastMeeting->attendance()->where('status', 'present')->count()
                 : null;
@@ -49,18 +61,26 @@ class Dashboard extends Component
         $totalClubs    = $clubs->count();
         $totalUsers    = User::whereHas('clubs', fn ($q) => $q->whereIn('clubs.id', $clubs->pluck('id')))->count();
         $upcomingCount = Meeting::whereIn('club_id', $clubs->pluck('id'))->upcoming()->count();
-        $recentMeetings = Meeting::with('club')
+        $recentMeetings = Meeting::select(['id', 'club_id', 'meeting_number', 'meeting_date', 'start_time', 'end_time', 'theme', 'status', 'venue'])
+            ->with('club:id,name')
             ->whereIn('club_id', $clubs->pluck('id'))
             ->latest('meeting_date')
             ->limit(5)
             ->get();
 
+        // Batch aggregated counts in 3 queries instead of 3x N+1 loop
+        $clubs->loadCount([
+            'users as member_count' => fn ($q) => $q->where('users.status', 'active'),
+            'meetings as upcoming_count' => fn ($q) => $q->upcoming(),
+            'meetings as total_meetings',
+        ]);
+
         $clubSummaries = $clubs->map(function (Club $club) {
             return [
                 'club'            => $club,
-                'member_count'    => $club->users()->where('users.status', 'active')->count(),
-                'upcoming_count'  => Meeting::forClub($club->id)->upcoming()->count(),
-                'total_meetings'  => Meeting::forClub($club->id)->count(),
+                'member_count'    => (int) $club->member_count,
+                'upcoming_count'  => (int) $club->upcoming_count,
+                'total_meetings'  => (int) $club->total_meetings,
             ];
         });
 

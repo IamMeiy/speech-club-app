@@ -27,9 +27,10 @@ class ProgressIndex extends Component
         // 1. Prepared Speeches Delivered by this user
         $speeches = $user->meetingSpeakerSlots()
             ->with([
-                'meeting.club',
-                'projectModel',
-                'evaluation.evaluator',
+                'meeting:id,club_id,meeting_number,meeting_date',
+                'meeting.club:id,name',
+                'projectModel:id,name,track,level,min_minutes,max_minutes',
+                'evaluation.evaluator:id,name',
             ])
             ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
             ->orderByDesc('id')
@@ -39,12 +40,12 @@ class ProgressIndex extends Component
         $meetingIds = $speeches->pluck('meeting_id')->unique();
         $ahLogs = MeetingAhCounterLog::whereIn('meeting_id', $meetingIds)
             ->where('user_id', $user->id)
-            ->get()
+            ->get(['id', 'meeting_id', 'user_id', 'ah_count', 'um_count', 'like_count', 'repeats_count'])
             ->keyBy('meeting_id');
 
         $grammarLogs = MeetingGrammarianLog::whereIn('meeting_id', $meetingIds)
             ->where('user_id', $user->id)
-            ->get()
+            ->get(['id', 'meeting_id', 'user_id', 'word_of_day_count', 'good_phrases'])
             ->keyBy('meeting_id');
 
         foreach ($speeches as $speech) {
@@ -55,9 +56,10 @@ class ProgressIndex extends Component
         // 2. Evaluations Given by this user to peer speakers
         $evaluationsGiven = $user->evaluations()
             ->with([
-                'meeting.club',
-                'speaker.user',
-                'speaker.projectModel',
+                'meeting:id,club_id,meeting_number,meeting_date',
+                'meeting.club:id,name',
+                'speaker.user:id,name',
+                'speaker.projectModel:id,name,track,level',
             ])
             ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
             ->orderByDesc('id')
@@ -65,20 +67,37 @@ class ProgressIndex extends Component
 
         // 3. Table Topics (Impromptu speaking history)
         $tableTopics = $user->meetingTtmSlots()
-            ->with(['meeting.club'])
+            ->with([
+                'meeting:id,club_id,meeting_number,meeting_date',
+                'meeting.club:id,name',
+            ])
             ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
             ->orderByDesc('id')
             ->get();
 
         // 4. Meeting Facilitator Roles served
         $rolesServed = $user->meetingRoles()
-            ->with(['meeting.club', 'roleType'])
+            ->with([
+                'meeting:id,club_id,meeting_number,meeting_date',
+                'meeting.club:id,name',
+                'roleType:id,name',
+            ])
             ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
             ->orderByDesc('id')
             ->get();
 
-        // 5. Milestone Badges
-        $badges = $user->getMilestoneBadges($clubId);
+        // 5. Milestone Badges with pre-computed counts to eliminate N+1 queries
+        $counts = [
+            'speeches'          => $speeches->count(),
+            'table_topics'      => $tableTopics->count(),
+            'evaluations'       => $evaluationsGiven->count(),
+            'roles'             => $rolesServed->count(),
+            'meetings_attended' => $user->attendance()
+                ->when($clubId, fn ($q) => $q->whereHas('meeting', fn ($m) => $m->where('club_id', $clubId)))
+                ->whereIn('status', ['present', 'late'])
+                ->count(),
+        ];
+        $badges = $user->getMilestoneBadges($clubId, $counts);
         $unlockedBadgesCount = collect($badges)->where('unlocked', true)->count();
 
         // 6. Summary metrics

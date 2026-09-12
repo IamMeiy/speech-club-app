@@ -78,12 +78,12 @@ class MeetingShow extends Component
         $theme = in_array($theme, $validThemes, true) ? $theme : 'indigo';
 
         $meeting = $this->meeting->load([
-            'club',
-            'roles.roleType',
-            'roles.user',
-            'speakers.user',
-            'speakers.evaluation.evaluator',
-            'ttmSpeakers.user',
+            'club:id,name,code',
+            'roles.roleType:id,name,sort_order',
+            'roles.user:id,name,email',
+            'speakers.user:id,name,email',
+            'speakers.evaluation.evaluator:id,name,email',
+            'ttmSpeakers.user:id,name,email',
         ]);
 
         $pdf = Pdf::loadView('pdf.meeting-agenda', compact('meeting', 'theme'))
@@ -517,29 +517,32 @@ class MeetingShow extends Component
     public function render()
     {
         $meeting = $this->meeting->load([
-            'club',
-            'creator',
-            'roles.roleType',
-            'roles.user',
-            'speakers.user',
-            'speakers.projectModel',
-            'speakers.evaluation.evaluator',
-            'ttmSpeakers.user',
-            'evaluations.speaker.user',
-            'evaluations.evaluator',
-            'attendance.user',
-            'ahCounterLogs.user',
-            'grammarianLogs.user',
-            'timerLogs.user',
+            'club:id,name,code',
+            'creator:id,name',
+            'roles.roleType:id,name,sort_order',
+            'roles.user:id,name,email',
+            'speakers.user:id,name,email',
+            'speakers.projectModel:id,name,track,level,min_minutes,max_minutes',
+            'speakers.evaluation.evaluator:id,name,email',
+            'ttmSpeakers.user:id,name,email',
+            'evaluations.speaker.user:id,name,email',
+            'evaluations.evaluator:id,name,email',
+            'attendance.user:id,name,email',
+            'ahCounterLogs.user:id,name',
+            'grammarianLogs.user:id,name',
+            'timerLogs.user:id,name',
         ]);
 
-        $allRoleTypes = MeetingRoleType::active()->get();
-        $clubMembers = User::inClub($meeting->club_id)->active()->orderBy('name')->get();
+        $allRoleTypes = MeetingRoleType::active()->get(['id', 'name', 'sort_order']);
         $currentUserId = auth()->id();
         $canVolunteer = in_array($meeting->status, ['draft', 'scheduled']) &&
                         (auth()->user()->isSuperAdmin() || auth()->user()->belongsToClub($meeting->club_id));
 
-        $projects = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get();
+        $projects = \App\Models\Project::active()
+            ->orderBy('level')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'level', 'min_minutes', 'max_minutes', 'track']);
 
         $initialAhLogs = [];
         foreach ($meeting->ahCounterLogs as $l) {
@@ -648,7 +651,6 @@ class MeetingShow extends Component
         return view('livewire.meetings.meeting-show', compact(
             'meeting',
             'allRoleTypes',
-            'clubMembers',
             'meetingParticipants',
             'currentUserId',
             'canVolunteer',

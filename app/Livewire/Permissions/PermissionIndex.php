@@ -13,7 +13,7 @@ class PermissionIndex extends Component
 {
     public function render()
     {
-        $permissions = Permission::orderBy('name')->get()
+        $permissions = Permission::orderBy('name')->get(['id', 'name'])
             ->groupBy(fn ($p) => explode('.', $p->name)[0]);
 
         return view('livewire.permissions.permission-index', compact('permissions'));

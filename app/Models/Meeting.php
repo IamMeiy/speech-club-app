@@ -53,7 +53,7 @@ class Meeting extends Model
      */
     public function roles(): HasMany
     {
-        return $this->hasMany(MeetingRole::class)->with('roleType', 'user');
+        return $this->hasMany(MeetingRole::class)->with(['roleType:id,name,sort_order', 'user:id,name,email']);
     }
 
     /**
@@ -77,23 +77,23 @@ class Meeting extends Model
      */
     public function evaluations(): HasMany
     {
-        return $this->hasMany(MeetingEvaluation::class)->with('speaker.user', 'evaluator');
+        return $this->hasMany(MeetingEvaluation::class)->with(['speaker.user:id,name,email', 'evaluator:id,name,email']);
     }
 
     /**
      * Attendance records for this meeting.
      */
-     public function attendance(): HasMany
-     {
-         return $this->hasMany(MeetingAttendance::class)->with('user');
-     }
+    public function attendance(): HasMany
+    {
+        return $this->hasMany(MeetingAttendance::class)->with('user:id,name,email');
+    }
 
     /**
      * Ah-Counter tracking logs for this meeting.
      */
     public function ahCounterLogs(): HasMany
     {
-        return $this->hasMany(MeetingAhCounterLog::class)->with('user');
+        return $this->hasMany(MeetingAhCounterLog::class)->with('user:id,name,email');
     }
 
     /**
@@ -101,7 +101,7 @@ class Meeting extends Model
      */
     public function grammarianLogs(): HasMany
     {
-        return $this->hasMany(MeetingGrammarianLog::class)->with('user');
+        return $this->hasMany(MeetingGrammarianLog::class)->with('user:id,name,email');
     }
 
     /**
@@ -109,7 +109,7 @@ class Meeting extends Model
      */
     public function timerLogs(): HasMany
     {
-        return $this->hasMany(MeetingTimerLog::class)->with('user');
+        return $this->hasMany(MeetingTimerLog::class)->with('user:id,name,email');
     }
 
     /**

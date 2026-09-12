@@ -28,7 +28,7 @@ class RoleIndex extends Component
 
     public function render()
     {
-        $roles = Role::withCount('users', 'permissions')->orderBy('name')->get();
+        $roles = Role::withCount('users', 'permissions')->orderBy('name')->get(['id', 'name']);
         return view('livewire.roles.role-index', compact('roles'));
     }
 }

@@ -20,7 +20,7 @@ class RoleEdit extends Component
     {
         $this->role                = $role;
         $this->name                = $role->name;
-        $this->selectedPermissions = $role->permissions->pluck('name')->toArray();
+        $this->selectedPermissions = $role->permissions()->pluck('name')->toArray();
     }
 
     public function save(): void
@@ -39,7 +39,7 @@ class RoleEdit extends Component
 
     public function render()
     {
-        $permissions = Permission::orderBy('name')->get()->groupBy(fn ($p) => explode('.', $p->name)[0]);
+        $permissions = Permission::orderBy('name')->get(['id', 'name'])->groupBy(fn ($p) => explode('.', $p->name)[0]);
         return view('livewire.roles.role-edit', compact('permissions'));
     }
 }

@@ -35,7 +35,7 @@ class UserEdit extends Component
             }
         } elseif (! $currentUser->isSuperAdmin()) {
             // Global user: must share at least one assigned club
-            $commonClubs = $currentUser->clubs()->whereIn('clubs.id', $user->clubs->pluck('id'))->exists();
+            $commonClubs = $currentUser->clubs()->whereIn('clubs.id', $user->clubs()->pluck('clubs.id'))->exists();
             if (! $commonClubs) {
                 abort(403, 'You do not have permission to edit this member.');
             }
@@ -45,7 +45,7 @@ class UserEdit extends Component
         $this->name   = $user->name;
         $this->email  = $user->email;
         $this->phone  = $user->phone ?? '';
-        $this->role   = $user->roles->first()?->name ?? 'Member';
+        $this->role   = $user->roles()->pluck('name')->first() ?? 'Member';
         $this->status = $user->status;
     }
 

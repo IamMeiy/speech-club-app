@@ -65,7 +65,31 @@ class ProfileEdit extends Component
 
     public function render()
     {
-        $user = auth()->user()->load('roles', 'clubs');
-        return view('livewire.profile.profile-edit', compact('user'));
+        $user = auth()->user()->load(['roles:id,name', 'clubs:id,name']);
+
+        $speechesCount    = $user->speechesCount();
+        $ttmCount         = $user->tableTopicsCount();
+        $evalsCount       = $user->evaluationsCount();
+        $rolesCount       = $user->meetingRolesCount();
+        $attendedCount    = $user->attendance()->whereIn('status', ['present', 'late'])->count();
+        $counts           = [
+            'speeches'          => $speechesCount,
+            'table_topics'      => $ttmCount,
+            'evaluations'       => $evalsCount,
+            'roles'             => $rolesCount,
+            'meetings_attended' => $attendedCount,
+        ];
+        $badges           = $user->getMilestoneBadges(null, $counts);
+        $unlockedCount    = collect($badges)->where('unlocked', true)->count();
+
+        return view('livewire.profile.profile-edit', compact(
+            'user',
+            'speechesCount',
+            'ttmCount',
+            'evalsCount',
+            'rolesCount',
+            'badges',
+            'unlockedCount'
+        ));
     }
 }

@@ -32,7 +32,7 @@ class RoleCreate extends Component
 
     public function render()
     {
-        $permissions = Permission::orderBy('name')->get()->groupBy(fn ($p) => explode('.', $p->name)[0]);
+        $permissions = Permission::orderBy('name')->get(['id', 'name'])->groupBy(fn ($p) => explode('.', $p->name)[0]);
         return view('livewire.roles.role-create', compact('permissions'));
     }
 }

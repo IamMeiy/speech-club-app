@@ -27,7 +27,7 @@ class ClubRoleManager extends Component
     public function render()
     {
         $clubRoleNames = config('speech-club.club_roles', []);
-        $clubRoles     = Role::whereIn('name', $clubRoleNames)->orderBy('name')->get();
+        $clubRoles     = Role::whereIn('name', $clubRoleNames)->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.clubs.club-role-manager', compact('clubRoles'));
     }

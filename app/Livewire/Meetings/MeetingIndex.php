@@ -54,10 +54,11 @@ class MeetingIndex extends Component
         $user = auth()->user();
         $club = $clubContext->currentClub();
 
-        $query = Meeting::with('club')
+        $query = Meeting::select(['id', 'club_id', 'meeting_number', 'meeting_date', 'theme', 'venue', 'status'])
+            ->with('club:id,name')
             ->when($club, fn ($q) => $q->forClub($club->id))
             ->when(! $club && ! $user->isSuperAdmin(), function ($q) use ($user) {
-                $q->whereIn('club_id', $user->clubs->pluck('id'));
+                $q->whereIn('club_id', $user->clubs()->pluck('clubs.id'));
             })
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('theme', 'like', "%{$this->search}%")
