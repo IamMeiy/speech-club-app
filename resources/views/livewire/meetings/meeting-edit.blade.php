@@ -85,8 +85,8 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Notes</label>
-                    <textarea wire:model="notes" rows="3" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Meeting Notes & Agenda</label>
+                    <x-rich-text-editor wire:model="notes" placeholder="Additional agenda items, meeting notes, action items, or announcements…" />
                 </div>
             </div>
         </div>
