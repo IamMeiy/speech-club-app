@@ -46,8 +46,13 @@
                 <p class="text-3xl font-extrabold mt-1 tracking-tight">#{{ $meeting->meeting_number }}</p>
             </div>
             <div>
-                <p class="text-primary-200 text-[11px] font-bold uppercase tracking-wider">Date</p>
-                <p class="text-base sm:text-lg font-bold mt-1">{{ $meeting->meeting_date->format('d M Y') }}</p>
+                <p class="text-primary-200 text-[11px] font-bold uppercase tracking-wider">Date & Time</p>
+                <p class="text-base sm:text-lg font-bold mt-1">
+                    {{ $meeting->meeting_date->format('d M Y') }}
+                    @if($meeting->formattedTime())
+                        <span class="text-xs sm:text-sm font-medium text-primary-200 block sm:inline sm:ml-1">({{ $meeting->formattedTime() }})</span>
+                    @endif
+                </p>
             </div>
             <div>
                 <p class="text-primary-200 text-[11px] font-bold uppercase tracking-wider">Club</p>
@@ -124,15 +129,31 @@
             @else
             <div class="space-y-3">
                 @foreach($meeting->speakers as $speaker)
+                @php
+                    $spTimer = $meeting->timerLogs->where('speaker_type', 'prepared_speaker')->firstWhere('reference_id', $speaker->id);
+                @endphp
                 <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
                     <div class="flex items-start justify-between">
                         <div>
-                            <p class="font-bold text-slate-900 dark:text-white text-sm">{{ $speaker->user->name }}</p>
-                            @if($speaker->topic) <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ $speaker->topic }}</p> @endif
-                            @if($speaker->speech_type) <p class="text-xs text-primary-600 dark:text-primary-400 font-semibold mt-1">{{ $speaker->speech_type }}</p> @endif
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="font-bold text-slate-900 dark:text-white text-sm">{{ $speaker->user->name }}</p>
+                                @if($spTimer && $spTimer->time_taken)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border {{ $spTimer->statusBadge()['class'] }}">
+                                        ⏱ {{ $spTimer->time_taken }} ({{ $spTimer->statusBadge()['label'] }})
+                                    </span>
+                                @endif
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                    Allotted: {{ $speaker->formattedTiming() }}
+                                </span>
+                            </div>
+                            @if($speaker->topic) <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">&ldquo;{{ $speaker->topic }}&rdquo;</p> @endif
+                            <div class="flex flex-wrap items-center gap-2 mt-1">
+                                @if($speaker->speech_type) <p class="text-xs text-primary-600 dark:text-primary-400 font-semibold">{{ $speaker->speech_type }}</p> @endif
+                                @if($speaker->project) <p class="text-xs text-slate-500 dark:text-slate-400">&bull; {{ $speaker->project }}</p> @endif
+                            </div>
                         </div>
                         @if($speaker->evaluation)
-                        <div class="text-right">
+                        <div class="text-right flex-shrink-0">
                             <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Evaluator</p>
                             <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400">{{ $speaker->evaluation->evaluator->name }}</p>
                         </div>
@@ -152,11 +173,26 @@
             @else
             <div class="space-y-3">
                 @foreach($meeting->ttmSpeakers as $ttm)
-                <div class="flex items-center gap-3.5 py-2 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
-                    <span class="text-xs font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">#{{ $ttm->slot }}</span>
-                    <div>
-                        <p class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{{ $ttm->user->name }}</p>
-                        @if($ttm->topic) <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ $ttm->topic }}</p> @endif
+                @php
+                    $ttmTimer = $meeting->timerLogs->where('speaker_type', 'ttm_speaker')->firstWhere('reference_id', $ttm->id);
+                @endphp
+                <div class="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800/60 last:border-0 gap-3">
+                    <div class="flex items-center gap-3.5">
+                        <span class="text-xs font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full">#{{ $ttm->slot }}</span>
+                        <div>
+                            <p class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{{ $ttm->user->name }}</p>
+                            @if($ttm->topic) <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ $ttm->topic }}</p> @endif
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        @if($ttmTimer && $ttmTimer->time_taken)
+                            <span class="text-[11px] font-bold px-2 py-0.5 rounded border {{ $ttmTimer->statusBadge()['class'] }} whitespace-nowrap">
+                                ⏱ {{ $ttmTimer->time_taken }} ({{ $ttmTimer->statusBadge()['label'] }})
+                            </span>
+                        @endif
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                            Allotted: {{ $ttm->formattedTiming() }}
+                        </span>
                     </div>
                 </div>
                 @endforeach
@@ -182,6 +218,114 @@
         @endif
 
     </div>
+
+    {{-- Official Timer Report Section --}}
+    @php
+        $hasTimerLogs = $meeting->timerLogs->whereNotNull('time_taken')->isNotEmpty();
+    @endphp
+    @if($hasTimerLogs || $meeting->speakers->isNotEmpty() || $meeting->evaluations->isNotEmpty() || $meeting->ttmSpeakers->isNotEmpty())
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors space-y-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">Official Timer Report</h2>
+            </div>
+            <span class="text-xs text-slate-400 font-medium">Recorded Speech, Evaluation & Table Topics Durations</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {{-- Prepared Speeches Timer --}}
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prepared Speeches</h3>
+                <div class="space-y-2">
+                    @forelse($meeting->speakers as $sp)
+                    @php
+                        $tLog = $meeting->timerLogs->where('speaker_type', 'prepared_speaker')->firstWhere('reference_id', $sp->id);
+                    @endphp
+                    <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-xs font-bold text-slate-900 dark:text-white">{{ $sp->user->name }}</p>
+                            <p class="text-[10px] text-slate-400 font-medium">Allotted: {{ $sp->formattedTiming() }}</p>
+                        </div>
+                        <div class="text-right">
+                            @if($tLog && $tLog->time_taken)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold border {{ $tLog->statusBadge()['class'] }}">
+                                    {{ $tLog->time_taken }}
+                                </span>
+                                <div class="text-[10px] font-semibold mt-0.5 text-slate-500">{{ $tLog->statusBadge()['label'] }}</div>
+                            @else
+                                <span class="text-[11px] text-slate-400 italic">Not recorded</span>
+                            @endif
+                        </div>
+                    </div>
+                    @empty
+                    <p class="text-xs text-slate-400 italic">No prepared speeches.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- Speech Evaluations Timer --}}
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Speech Evaluations</h3>
+                <div class="space-y-2">
+                    @forelse($meeting->evaluations as $ev)
+                    @php
+                        $tLog = $meeting->timerLogs->where('speaker_type', 'evaluator')->firstWhere('reference_id', $ev->id);
+                    @endphp
+                    <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-xs font-bold text-slate-900 dark:text-white">{{ $ev->evaluator->name }}</p>
+                            <p class="text-[10px] text-slate-400 font-medium">Eval: {{ $ev->speaker?->user?->name ?? 'Speaker' }} &bull; 2-3 mins</p>
+                        </div>
+                        <div class="text-right">
+                            @if($tLog && $tLog->time_taken)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold border {{ $tLog->statusBadge()['class'] }}">
+                                    {{ $tLog->time_taken }}
+                                </span>
+                                <div class="text-[10px] font-semibold mt-0.5 text-slate-500">{{ $tLog->statusBadge()['label'] }}</div>
+                            @else
+                                <span class="text-[11px] text-slate-400 italic">Not recorded</span>
+                            @endif
+                        </div>
+                    </div>
+                    @empty
+                    <p class="text-xs text-slate-400 italic">No evaluations.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- Table Topics Timer --}}
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Table Topics</h3>
+                <div class="space-y-2">
+                    @forelse($meeting->ttmSpeakers as $ttm)
+                    @php
+                        $tLog = $meeting->timerLogs->where('speaker_type', 'ttm_speaker')->firstWhere('reference_id', $ttm->id);
+                    @endphp
+                    <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-xs font-bold text-slate-900 dark:text-white">{{ $ttm->user->name }}</p>
+                            <p class="text-[10px] text-slate-400 font-medium">Slot #{{ $ttm->slot }} &bull; Allotted: 1-2 mins</p>
+                        </div>
+                        <div class="text-right">
+                            @if($tLog && $tLog->time_taken)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold border {{ $tLog->statusBadge()['class'] }}">
+                                    {{ $tLog->time_taken }}
+                                </span>
+                                <div class="text-[10px] font-semibold mt-0.5 text-slate-500">{{ $tLog->statusBadge()['label'] }}</div>
+                            @else
+                                <span class="text-[11px] text-slate-400 italic">Not recorded</span>
+                            @endif
+                        </div>
+                    </div>
+                    @empty
+                    <p class="text-xs text-slate-400 italic">No Table Topics.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 
     @if($meeting->notes)
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">

@@ -288,6 +288,92 @@ class NewModulesTest extends TestCase
         ]);
     }
 
+    public function test_ah_counter_and_grammarian_do_not_overwrite_each_other(): void
+    {
+        $club = Club::first();
+        $user = User::factory()->create();
+        $user->assignRole('Member');
+        $user->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 205,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'scheduled',
+        ]);
+
+        $this->actingAs($user);
+
+        // Step 1: Grammarian enters and submits data
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveAllCounts', null, [
+                $user->id => [
+                    'word_of_day_count' => 4,
+                    'good_phrases'      => 'Outstanding rhetoric',
+                    'awkward_phrases'   => null,
+                    'notes'             => null,
+                ]
+            ], 'grammarian')
+            ->assertDispatched('counts-saved');
+
+        $this->assertDatabaseHas('meeting_grammarian_logs', [
+            'meeting_id'        => $meeting->id,
+            'user_id'           => $user->id,
+            'word_of_day_count' => 4,
+            'good_phrases'      => 'Outstanding rhetoric',
+        ]);
+
+        // Step 2: Ah-Counter later enters and submits their data
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveAllCounts', [
+                $user->id => [
+                    'ah_count' => 7,
+                    'um_count' => 2,
+                ]
+            ], null, 'ah_counter')
+            ->assertDispatched('counts-saved');
+
+        // Verify Ah-Counter data is saved
+        $this->assertDatabaseHas('meeting_ah_counter_logs', [
+            'meeting_id' => $meeting->id,
+            'user_id'    => $user->id,
+            'ah_count'   => 7,
+            'um_count'   => 2,
+        ]);
+
+        // Crucially: verify previously saved Grammarian data is STILL INTACT and NOT overwritten
+        $this->assertDatabaseHas('meeting_grammarian_logs', [
+            'meeting_id'        => $meeting->id,
+            'user_id'           => $user->id,
+            'word_of_day_count' => 4,
+            'good_phrases'      => 'Outstanding rhetoric',
+        ]);
+
+        // Step 3: Grammarian updates their data again
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveGrammarianCounts', [
+                $user->id => [
+                    'word_of_day_count' => 5,
+                    'good_phrases'      => 'Brilliant phrasing',
+                ]
+            ]);
+
+        $this->assertDatabaseHas('meeting_grammarian_logs', [
+            'meeting_id'        => $meeting->id,
+            'user_id'           => $user->id,
+            'word_of_day_count' => 5,
+            'good_phrases'      => 'Brilliant phrasing',
+        ]);
+
+        // Verify Ah-Counter data is still preserved
+        $this->assertDatabaseHas('meeting_ah_counter_logs', [
+            'meeting_id' => $meeting->id,
+            'user_id'    => $user->id,
+            'ah_count'   => 7,
+            'um_count'   => 2,
+        ]);
+    }
+
     public function test_user_can_view_my_progress_and_feedback(): void
     {
         $club = Club::first();
@@ -392,6 +478,113 @@ class NewModulesTest extends TestCase
         Livewire::test(MeetingShow::class, ['meeting' => $meeting])
             ->call('saveEvaluationNotes', $evaluation->id, 'Hacked notes')
             ->assertForbidden();
+    }
+
+    public function test_timer_sheet_can_record_timings_for_speakers_evaluators_and_ttm(): void
+    {
+        $club = Club::first();
+        $speakerUser = User::factory()->create();
+        $speakerUser->assignRole('Member');
+        $speakerUser->clubs()->attach($club->id);
+
+        $evaluatorUser = User::factory()->create();
+        $evaluatorUser->assignRole('Member');
+        $evaluatorUser->clubs()->attach($club->id);
+
+        $ttmUser = User::factory()->create();
+        $ttmUser->assignRole('Member');
+        $ttmUser->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 209,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'in_progress',
+        ]);
+
+        $speaker = MeetingSpeaker::create([
+            'meeting_id' => $meeting->id,
+            'user_id' => $speakerUser->id,
+            'slot' => 1,
+            'topic' => 'The Art of Persuasion',
+            'duration' => '5-7 mins',
+        ]);
+
+        $evaluation = MeetingEvaluation::create([
+            'meeting_id' => $meeting->id,
+            'speaker_id' => $speaker->id,
+            'evaluator_user_id' => $evaluatorUser->id,
+        ]);
+
+        $ttm = MeetingTtmSpeaker::create([
+            'meeting_id' => $meeting->id,
+            'user_id' => $ttmUser->id,
+            'slot' => 1,
+            'topic' => 'Spontaneous Speaking',
+            'duration' => '1-2 mins',
+        ]);
+
+        $this->actingAs($speakerUser);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->assertStatus(200)
+            ->call('saveTimerLogs', [
+                'prepared_speaker_' . $speaker->id => [
+                    'speaker_type' => 'prepared_speaker',
+                    'reference_id' => $speaker->id,
+                    'user_id' => $speakerUser->id,
+                    'allotted_time' => '5-7 mins',
+                    'time_taken' => '06:15',
+                    'status' => 'within_time',
+                    'notes' => 'Paced well',
+                ],
+                'evaluator_' . $evaluation->id => [
+                    'speaker_type' => 'evaluator',
+                    'reference_id' => $evaluation->id,
+                    'user_id' => $evaluatorUser->id,
+                    'allotted_time' => '2-3 mins',
+                    'time_taken' => '03:15',
+                    'status' => 'over_time',
+                    'notes' => 'Red flag at 3:00',
+                ],
+                'ttm_speaker_' . $ttm->id => [
+                    'speaker_type' => 'ttm_speaker',
+                    'reference_id' => $ttm->id,
+                    'user_id' => $ttmUser->id,
+                    'allotted_time' => '1-2 mins',
+                    'time_taken' => '01:45',
+                    'status' => 'within_time',
+                    'notes' => 'Green at 1:00',
+                ],
+            ])
+            ->assertDispatched('timer-logs-saved');
+
+        $this->assertDatabaseHas('meeting_timer_logs', [
+            'meeting_id' => $meeting->id,
+            'speaker_type' => 'prepared_speaker',
+            'reference_id' => $speaker->id,
+            'user_id' => $speakerUser->id,
+            'time_taken' => '06:15',
+            'status' => 'within_time',
+        ]);
+
+        $this->assertDatabaseHas('meeting_timer_logs', [
+            'meeting_id' => $meeting->id,
+            'speaker_type' => 'evaluator',
+            'reference_id' => $evaluation->id,
+            'user_id' => $evaluatorUser->id,
+            'time_taken' => '03:15',
+            'status' => 'over_time',
+        ]);
+
+        $this->assertDatabaseHas('meeting_timer_logs', [
+            'meeting_id' => $meeting->id,
+            'speaker_type' => 'ttm_speaker',
+            'reference_id' => $ttm->id,
+            'user_id' => $ttmUser->id,
+            'time_taken' => '01:45',
+            'status' => 'within_time',
+        ]);
     }
 }
 

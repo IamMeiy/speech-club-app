@@ -191,6 +191,21 @@
         .att-excused { background: #f1f5f9; color: #475569; }
         .att-absent  { background: #ffe4e6; color: #be123c; }
 
+        .timer-badge {
+            display: inline-block;
+            padding: 1.5px 5px;
+            border-radius: 3px;
+            font-size: 7.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-top: 2px;
+        }
+        .timer-within { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+        .timer-over   { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .timer-under  { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .timer-dq     { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
         .att-icon {
             font-family: 'DejaVu Sans', sans-serif;
             font-weight: normal;
@@ -420,6 +435,9 @@
             <td style="width: 25%;">
                 <div class="info-label">Meeting Date</div>
                 <div class="info-value">{{ $meeting->meeting_date->format('l, d F Y') }}</div>
+                @if($meeting->formattedTime())
+                    <div style="font-size: 9.5px; color: #64748b; font-weight: 600; margin-top: 2px;">{{ $meeting->formattedTime() }}</div>
+                @endif
             </td>
             <td style="width: 25%;">
                 <div class="info-label">Venue / Location</div>
@@ -516,17 +534,31 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="width: 15%; text-align: center;">Slot</th>
-                                <th style="width: 45%;">Speaker</th>
-                                <th style="width: 40%;">Topic / Remarks</th>
+                                <th style="width: 12%; text-align: center;">Slot</th>
+                                <th style="width: 38%;">Speaker</th>
+                                <th style="width: 32%;">Topic / Remarks</th>
+                                <th style="width: 18%; text-align: right;">Timing</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($meeting->ttmSpeakers as $ttm)
+                            @php
+                                $ttmTimer = $meeting->timerLogs->where('speaker_type', 'ttm_speaker')->firstWhere('reference_id', $ttm->id);
+                            @endphp
                             <tr>
                                 <td style="text-align: center;"><span class="slot-badge">#{{ $ttm->slot }}</span></td>
                                 <td class="user-name">{{ $ttm->user->name }}</td>
                                 <td style="color: #64748b;">{{ $ttm->topic ?: '—' }}</td>
+                                <td style="text-align: right; color: #475569; font-weight: 600;">
+                                    @if($ttmTimer && $ttmTimer->time_taken)
+                                        <div style="font-size: 10px; font-weight: 800; color: #0f172a;">{{ $ttmTimer->time_taken }}</div>
+                                        <span class="timer-badge timer-{{ str_replace('_', '', $ttmTimer->status == 'within_time' ? 'within' : ($ttmTimer->status == 'over_time' ? 'over' : ($ttmTimer->status == 'under_time' ? 'under' : 'dq'))) }}">
+                                            {{ $ttmTimer->statusBadge()['label'] }}
+                                        </span>
+                                    @else
+                                        {{ $ttm->formattedTiming() }}
+                                    @endif
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -545,18 +577,32 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th style="width: 25%;">Speaker</th>
-                        <th style="width: 25%;">Project / Level</th>
-                        <th style="width: 30%;">Speech Title</th>
-                        <th style="width: 20%;">Evaluator</th>
+                        <th style="width: 20%;">Speaker</th>
+                        <th style="width: 22%;">Project / Level</th>
+                        <th style="width: 28%;">Speech Title</th>
+                        <th style="width: 12%; text-align: center;">Timing</th>
+                        <th style="width: 18%;">Evaluator</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($meeting->speakers as $speaker)
+                    @php
+                        $spkTimer = $meeting->timerLogs->where('speaker_type', 'prepared_speaker')->firstWhere('reference_id', $speaker->id);
+                    @endphp
                     <tr>
                         <td class="user-name">{{ $speaker->user->name }}</td>
                         <td style="color: {{ $th['700'] }}; font-weight: 600;">{{ $speaker->speech_type ?: 'Prepared Speech' }}</td>
                         <td style="color: #0f172a; font-weight: 600;">{{ $speaker->topic ? '"' . $speaker->topic . '"' : '—' }}</td>
+                        <td style="text-align: center; color: #475569; font-weight: 600;">
+                            @if($spkTimer && $spkTimer->time_taken)
+                                <div style="font-size: 10px; font-weight: 800; color: #0f172a;">{{ $spkTimer->time_taken }}</div>
+                                <span class="timer-badge timer-{{ str_replace('_', '', $spkTimer->status == 'within_time' ? 'within' : ($spkTimer->status == 'over_time' ? 'over' : ($spkTimer->status == 'under_time' ? 'under' : 'dq'))) }}">
+                                    {{ $spkTimer->statusBadge()['label'] }}
+                                </span>
+                            @else
+                                <span class="slot-badge">{{ $speaker->formattedTiming() }}</span>
+                            @endif
+                        </td>
                         <td style="color: #059669; font-weight: 700;">
                             {{ $speaker->evaluation ? $speaker->evaluation->evaluator->name : 'Not Assigned' }}
                         </td>
@@ -566,6 +612,104 @@
             </table>
         @endif
     </div>
+
+    {{-- Official Timer Report --}}
+    @php
+        $hasAnyTimerLog = $meeting->timerLogs->whereNotNull('time_taken')->isNotEmpty();
+    @endphp
+    @if($hasAnyTimerLog || $meeting->speakers->isNotEmpty() || $meeting->evaluations->isNotEmpty() || $meeting->ttmSpeakers->isNotEmpty())
+    <div class="section-container">
+        <div class="section-heading">Official Timer Report</div>
+        <table class="data-table" style="margin-bottom: 6px;">
+            <thead>
+                <tr>
+                    <th style="width: 18%;">Category</th>
+                    <th style="width: 26%;">Speaker / Role Bearer</th>
+                    <th style="width: 24%;">Speech / Detail</th>
+                    <th style="width: 12%; text-align: center;">Allotted</th>
+                    <th style="width: 10%; text-align: center;">Actual Time</th>
+                    <th style="width: 10%; text-align: center;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{-- Prepared Speakers --}}
+                @foreach($meeting->speakers as $speaker)
+                @php
+                    $tLog = $meeting->timerLogs->where('speaker_type', 'prepared_speaker')->firstWhere('reference_id', $speaker->id);
+                @endphp
+                <tr>
+                    <td style="font-weight: 700; color: {{ $th['700'] }}; font-size: 9px;">Prepared Speech</td>
+                    <td class="user-name">{{ $speaker->user->name }}</td>
+                    <td style="color: #64748b; font-size: 9.5px;">{{ $speaker->topic ? '"' . $speaker->topic . '"' : ($speaker->speech_type ?: 'Speech') }}</td>
+                    <td style="text-align: center; color: #64748b;">{{ $speaker->formattedTiming() }}</td>
+                    <td style="text-align: center; font-weight: 800; color: #0f172a;">
+                        {{ $tLog && $tLog->time_taken ? $tLog->time_taken : '—' }}
+                    </td>
+                    <td style="text-align: center;">
+                        @if($tLog && $tLog->time_taken)
+                            <span class="timer-badge timer-{{ str_replace('_', '', $tLog->status == 'within_time' ? 'within' : ($tLog->status == 'over_time' ? 'over' : ($tLog->status == 'under_time' ? 'under' : 'dq'))) }}">
+                                {{ $tLog->statusBadge()['label'] }}
+                            </span>
+                        @else
+                            <span style="color: #94a3b8; font-size: 8.5px;">Pending</span>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+
+                {{-- Speech Evaluators --}}
+                @foreach($meeting->evaluations as $evaluation)
+                @php
+                    $eLog = $meeting->timerLogs->where('speaker_type', 'evaluator')->firstWhere('reference_id', $evaluation->id);
+                @endphp
+                <tr>
+                    <td style="font-weight: 700; color: #059669; font-size: 9px;">Speech Evaluation</td>
+                    <td class="user-name">{{ $evaluation->evaluator->name }}</td>
+                    <td style="color: #64748b; font-size: 9.5px;">Eval for {{ $evaluation->speaker ? $evaluation->speaker->user->name : 'Speaker' }}</td>
+                    <td style="text-align: center; color: #64748b;">2-3 mins</td>
+                    <td style="text-align: center; font-weight: 800; color: #0f172a;">
+                        {{ $eLog && $eLog->time_taken ? $eLog->time_taken : '—' }}
+                    </td>
+                    <td style="text-align: center;">
+                        @if($eLog && $eLog->time_taken)
+                            <span class="timer-badge timer-{{ str_replace('_', '', $eLog->status == 'within_time' ? 'within' : ($eLog->status == 'over_time' ? 'over' : ($eLog->status == 'under_time' ? 'under' : 'dq'))) }}">
+                                {{ $eLog->statusBadge()['label'] }}
+                            </span>
+                        @else
+                            <span style="color: #94a3b8; font-size: 8.5px;">Pending</span>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+
+                {{-- Table Topics Speakers --}}
+                @foreach($meeting->ttmSpeakers as $ttm)
+                @php
+                    $ttmLog = $meeting->timerLogs->where('speaker_type', 'ttm_speaker')->firstWhere('reference_id', $ttm->id);
+                @endphp
+                <tr>
+                    <td style="font-weight: 700; color: #9333ea; font-size: 9px;">Table Topic (#{{ $ttm->slot }})</td>
+                    <td class="user-name">{{ $ttm->user->name }}</td>
+                    <td style="color: #64748b; font-size: 9.5px;">{{ $ttm->topic ?: 'Table Topic Speech' }}</td>
+                    <td style="text-align: center; color: #64748b;">{{ $ttm->formattedTiming() }}</td>
+                    <td style="text-align: center; font-weight: 800; color: #0f172a;">
+                        {{ $ttmLog && $ttmLog->time_taken ? $ttmLog->time_taken : '—' }}
+                    </td>
+                    <td style="text-align: center;">
+                        @if($ttmLog && $ttmLog->time_taken)
+                            <span class="timer-badge timer-{{ str_replace('_', '', $ttmLog->status == 'within_time' ? 'within' : ($ttmLog->status == 'over_time' ? 'over' : ($ttmLog->status == 'under_time' ? 'under' : 'dq'))) }}">
+                                {{ $ttmLog->statusBadge()['label'] }}
+                            </span>
+                        @else
+                            <span style="color: #94a3b8; font-size: 8.5px;">Pending</span>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
 
     {{-- Attendance Roll Call List --}}
     @if(!$meeting->attendance->isEmpty())

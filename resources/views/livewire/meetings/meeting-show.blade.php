@@ -55,26 +55,34 @@
              }
          },
 
-         saveFinalCounts() {
+         saveFinalCounts(role = null) {
+             const targetRole = role || this.activeTab;
              this.isSavingCounts = true;
 
-             const cleanAh = {};
-             for (const [uid, val] of Object.entries(this.ahCounts || {})) {
-                 const id = parseInt(uid, 10);
-                 if (id > 0 && typeof val === 'object' && val !== null) {
-                     cleanAh[id] = val;
+             let cleanAh = null;
+             let cleanGrammar = null;
+
+             if (targetRole === 'ah_counter' || targetRole === 'all') {
+                 cleanAh = {};
+                 for (const [uid, val] of Object.entries(this.ahCounts || {})) {
+                     const id = parseInt(uid, 10);
+                     if (id > 0 && typeof val === 'object' && val !== null) {
+                         cleanAh[id] = val;
+                     }
                  }
              }
 
-             const cleanGrammar = {};
-             for (const [uid, val] of Object.entries(this.grammarCounts || {})) {
-                 const id = parseInt(uid, 10);
-                 if (id > 0) {
-                     cleanGrammar[id] = val;
+             if (targetRole === 'grammarian' || targetRole === 'all') {
+                 cleanGrammar = {};
+                 for (const [uid, val] of Object.entries(this.grammarCounts || {})) {
+                     const id = parseInt(uid, 10);
+                     if (id > 0) {
+                         cleanGrammar[id] = val;
+                     }
                  }
              }
 
-             $wire.saveAllCounts(cleanAh, cleanGrammar).then(() => {
+             $wire.saveAllCounts(cleanAh, cleanGrammar, targetRole).then(() => {
                  this.isSavingCounts = false;
                  this.showLiveTools = false;
              }).catch(() => {
@@ -153,11 +161,135 @@
               }).catch(() => {
                   this.evalModalSaving = false;
               });
+          },
+
+          // Standalone Timer Sheet State
+          showTimerSheet: false,
+          timerTab: 'speakers',
+          timerLogs: {{ !empty($initialTimerLogs) ? Js::from($initialTimerLogs) : '{}' }},
+          isSavingTimer: false,
+
+          getTimer(key, field) {
+              if (!this.timerLogs[key]) {
+                  this.timerLogs[key] = { time_taken: '', status: 'within_time', notes: '' };
+              }
+              return this.timerLogs[key][field] ?? '';
+          },
+
+          setTimer(key, field, val) {
+              if (!this.timerLogs[key]) {
+                  this.timerLogs[key] = { time_taken: '', status: 'within_time', notes: '' };
+              }
+              this.timerLogs[key][field] = val;
+          },
+
+          // Unified Interactive Timepicker Popover State
+          activeTimePicker: null, // { key, name, allotted, type }
+          pickerMin: '00',
+          pickerSec: '00',
+
+          openTimePicker(key, name, allotted, type) {
+              this.activeTimePicker = { key, name, allotted, type };
+              const current = this.getTimer(key, 'time_taken');
+              if (current && typeof current === 'string' && current.includes(':')) {
+                  const parts = current.split(':');
+                  this.pickerMin = parts[0].padStart(2, '0');
+                  this.pickerSec = parts[1].padStart(2, '0');
+              } else {
+                  this.pickerMin = '00';
+                  this.pickerSec = '00';
+              }
+          },
+
+          selectPickerMin(m) {
+              this.pickerMin = m.toString().padStart(2, '0');
+              this.applyPickerTime();
+          },
+
+          selectPickerSec(s) {
+              this.pickerSec = s.toString().padStart(2, '0');
+              this.applyPickerTime();
+          },
+
+          selectPickerPreset(preset) {
+              if (preset && preset.includes(':')) {
+                  const parts = preset.split(':');
+                  this.pickerMin = parts[0].padStart(2, '0');
+                  this.pickerSec = parts[1].padStart(2, '0');
+                  this.applyPickerTime();
+              }
+          },
+
+          applyPickerTime() {
+              if (this.activeTimePicker) {
+                  this.setTimer(this.activeTimePicker.key, 'time_taken', `${this.pickerMin}:${this.pickerSec}`);
+              }
+          },
+
+          clearPickerTime() {
+              if (this.activeTimePicker) {
+                  this.setTimer(this.activeTimePicker.key, 'time_taken', '');
+                  this.pickerMin = '00';
+                  this.pickerSec = '00';
+              }
+              this.activeTimePicker = null;
+          },
+
+          closeTimePicker() {
+              this.activeTimePicker = null;
+          },
+
+          saveAllTimerLogs() {
+              this.isSavingTimer = true;
+              const payload = [];
+
+              @foreach($meeting->speakers as $sp)
+              payload.push({
+                  speaker_type: 'prepared_speaker',
+                  reference_id: {{ $sp->id }},
+                  user_id: {{ $sp->user_id }},
+                  allotted_time: '{{ addslashes($sp->formattedTiming()) }}',
+                  time_taken: this.getTimer('prepared_speaker_{{ $sp->id }}', 'time_taken'),
+                  status: this.getTimer('prepared_speaker_{{ $sp->id }}', 'status') || 'within_time',
+                  notes: this.getTimer('prepared_speaker_{{ $sp->id }}', 'notes'),
+              });
+              @endforeach
+
+              @foreach($meeting->evaluations as $ev)
+              payload.push({
+                  speaker_type: 'evaluator',
+                  reference_id: {{ $ev->id }},
+                  user_id: {{ $ev->evaluator_user_id }},
+                  allotted_time: '2-3 mins',
+                  time_taken: this.getTimer('evaluator_{{ $ev->id }}', 'time_taken'),
+                  status: this.getTimer('evaluator_{{ $ev->id }}', 'status') || 'within_time',
+                  notes: this.getTimer('evaluator_{{ $ev->id }}', 'notes'),
+              });
+              @endforeach
+
+              @foreach($meeting->ttmSpeakers as $ttm)
+              payload.push({
+                  speaker_type: 'ttm_speaker',
+                  reference_id: {{ $ttm->id }},
+                  user_id: {{ $ttm->user_id }},
+                  allotted_time: '1-2 mins',
+                  time_taken: this.getTimer('ttm_speaker_{{ $ttm->id }}', 'time_taken'),
+                  status: this.getTimer('ttm_speaker_{{ $ttm->id }}', 'status') || 'within_time',
+                  notes: this.getTimer('ttm_speaker_{{ $ttm->id }}', 'notes'),
+              });
+              @endforeach
+
+              $wire.saveTimerLogs(payload).then(() => {
+                  this.isSavingTimer = false;
+                  this.showTimerSheet = false;
+              }).catch(() => {
+                  this.isSavingTimer = false;
+              });
           }
       }"
       @speaker-signed-up.window="showSpeakerModal = false"
       @ttm-signed-up.window="showTtmModal = false"
-      @keydown.escape.window="if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
+      @keydown.escape.window="if (showTimerSheet) { showTimerSheet = false; } else if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
 
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
@@ -200,6 +332,15 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
                 </svg>
                 <span>Live Counter Tools</span>
+            </button>
+
+            {{-- Standalone Timer Sheet Button --}}
+            <button @click="showTimerSheet = true" type="button"
+                    class="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-[0.98]">
+                <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Timer Sheet</span>
             </button>
 
             @can('meetings.update')
@@ -794,11 +935,11 @@
                     </div>
 
                     {{-- Top Header Quick Submit --}}
-                    <button @click="saveFinalCounts()" :disabled="isSavingCounts" type="button"
+                    <button @click="saveFinalCounts(activeTab)" :disabled="isSavingCounts" type="button"
                             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition-all">
                         <svg x-show="!isSavingCounts" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         <svg x-show="isSavingCounts" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                        <span x-text="isSavingCounts ? 'Saving…' : 'Submit Final'"></span>
+                        <span x-text="isSavingCounts ? 'Saving…' : (activeTab === 'ah_counter' ? 'Submit Ah-Counter' : 'Submit Grammarian')"></span>
                     </button>
 
                     <button @click="showLiveTools = false" type="button" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -811,7 +952,7 @@
             <div x-show="activeTab === 'ah_counter'" class="overflow-y-auto flex-1 space-y-4 pr-1">
                 <div class="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between">
                     <span>💡 <strong>Ah-Counter Mode:</strong> Tap <code class="px-1.5 py-0.5 bg-amber-200/50 dark:bg-amber-900/50 rounded font-bold">+</code> or <code class="px-1.5 py-0.5 bg-amber-200/50 dark:bg-amber-900/50 rounded font-bold">-</code>. Changes update instantly on screen with 0ms delay!</span>
-                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Final&quot; when meeting ends</span>
+                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Ah-Counter&quot; when meeting ends</span>
                 </div>
 
                 <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -943,7 +1084,7 @@
                             <span class="text-[11px] text-amber-900/70 dark:text-amber-300/70 ml-1 italic">&mdash; {{ $meeting->word_definition }}</span>
                         @endif
                     </div>
-                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Final&quot; when meeting ends</span>
+                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Grammarian&quot; when meeting ends</span>
                 </div>
 
                 <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -1025,11 +1166,11 @@
                             class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         Close
                     </button>
-                    <button @click="saveFinalCounts()" :disabled="isSavingCounts" type="button"
+                    <button @click="saveFinalCounts(activeTab)" :disabled="isSavingCounts" type="button"
                             class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition-all">
                         <svg x-show="!isSavingCounts" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         <svg x-show="isSavingCounts" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                        <span x-text="isSavingCounts ? 'Submitting to Meeting…' : 'Submit Final Counts'"></span>
+                        <span x-text="isSavingCounts ? 'Submitting…' : (activeTab === 'ah_counter' ? 'Submit Ah-Counter Counts' : 'Submit Grammarian Report')"></span>
                     </button>
                 </div>
             </div>
@@ -1184,6 +1325,510 @@
                     </div>
                 </div>
             </template>
+
+        </div>
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Standalone Official Timer Sheet Modal (Pure Alpine.js 0ms Latency) --}}
+    {{-- ================================================================ --}}
+    <div x-show="showTimerSheet"
+         x-cloak
+         @click.self="showTimerSheet = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6 max-h-[90vh] flex flex-col">
+
+            {{-- Modal Header --}}
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Official Timer Sheet</h3>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80">
+                                Timer Report
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Meeting #{{ $meeting->meeting_number }} &bull; Record actual time taken (MM:SS) and qualification status.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2.5">
+                    {{-- Tab Switcher --}}
+                    <div class="p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center gap-1">
+                        <button @click="timerTab = 'speakers'" type="button"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                                :class="timerTab === 'speakers' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'">
+                            Speakers ({{ $meeting->speakers->count() }})
+                        </button>
+                        <button @click="timerTab = 'evaluators'" type="button"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                                :class="timerTab === 'evaluators' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'">
+                            Evaluators ({{ $meeting->evaluations->count() }})
+                        </button>
+                        <button @click="timerTab = 'ttm'" type="button"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                                :class="timerTab === 'ttm' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'">
+                            Table Topics ({{ $meeting->ttmSpeakers->count() }})
+                        </button>
+                    </div>
+
+                    {{-- Header Quick Save --}}
+                    <button @click="saveAllTimerLogs()" :disabled="isSavingTimer" type="button"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition-all">
+                        <svg x-show="!isSavingTimer" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="isSavingTimer" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span x-text="isSavingTimer ? 'Saving…' : 'Save Sheet'"></span>
+                    </button>
+
+                    <button @click="showTimerSheet = false" type="button" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Segment 1: Prepared Speakers Timer Sheet --}}
+            <div x-show="timerTab === 'speakers'" class="overflow-y-auto flex-1 space-y-4 pr-1">
+                <div class="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 rounded-2xl p-3.5 text-xs text-indigo-900 dark:text-indigo-300 flex items-center justify-between">
+                    <span>💡 <strong>Prepared Speech Rules:</strong> 30-second grace period under min time and over max time. Click "Set Time" to launch the interactive timepicker.</span>
+                </div>
+
+                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                                <th class="p-3 w-12 text-center">Slot</th>
+                                <th class="p-3">Speaker & Topic</th>
+                                <th class="p-3 w-28 text-center">Allotted Time</th>
+                                <th class="p-3 w-44 text-center">Actual Time</th>
+                                <th class="p-3 w-44">Qualification Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @forelse($meeting->speakers as $sp)
+                            @php
+                                $timerKey = 'prepared_speaker_' . $sp->id;
+                            @endphp
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3 text-center">
+                                    <span class="font-extrabold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2 py-0.5 rounded-full text-xs">#{{ $sp->slot }}</span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $sp->user->name }}</div>
+                                    @if($sp->topic) <div class="text-xs text-slate-500 dark:text-slate-400">&ldquo;{{ $sp->topic }}&rdquo;</div> @endif
+                                    @if($sp->speech_type) <div class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold mt-0.5">{{ $sp->speech_type }}</div> @endif
+                                </td>
+                                <td class="p-3 text-center">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                                        ⏱ {{ $sp->formattedTiming() }}
+                                    </span>
+                                </td>
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5">
+                                        <button type="button"
+                                                @click="openTimePicker('{{ $timerKey }}', '{{ addslashes($sp->user->name) }}', '{{ $sp->formattedTiming() }}', 'speakers')"
+                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs cursor-pointer hover:shadow-sm"
+                                                :class="getTimer('{{ $timerKey }}', 'time_taken') 
+                                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60' 
+                                                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'">
+                                            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || 'Set Time'"></span>
+                                            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+                                        <button type="button"
+                                                x-show="getTimer('{{ $timerKey }}', 'time_taken')"
+                                                @click="setTimer('{{ $timerKey }}', 'time_taken', '')"
+                                                class="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                                title="Clear time">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <select :value="getTimer('{{ $timerKey }}', 'status') || 'within_time'"
+                                            @change="setTimer('{{ $timerKey }}', 'status', $event.target.value)"
+                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="within_time">🟢 Within Time</option>
+                                        <option value="over_time">🔴 Over Time</option>
+                                        <option value="under_time">🟡 Under Time</option>
+                                        <option value="disqualified">⚪ Disqualified</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-slate-400">
+                                    No prepared speakers scheduled yet for this meeting.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Segment 2: Evaluators Timer Sheet --}}
+            <div x-show="timerTab === 'evaluators'" class="overflow-y-auto flex-1 space-y-4 pr-1">
+                <div class="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 rounded-2xl p-3.5 text-xs text-indigo-900 dark:text-indigo-300 flex items-center justify-between">
+                    <span>💡 <strong>Evaluation Timing Rules:</strong> Allotted time is 2–3 minutes (green at 2:00, amber at 2:30, red at 3:00, 30s grace to 3:30). Click "Set Time" to launch the interactive timepicker.</span>
+                </div>
+
+                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                                <th class="p-3">Evaluator</th>
+                                <th class="p-3">Speaker Evaluated</th>
+                                <th class="p-3 w-28 text-center">Allotted Time</th>
+                                <th class="p-3 w-44 text-center">Actual Time</th>
+                                <th class="p-3 w-44">Qualification Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @forelse($meeting->evaluations as $ev)
+                            @php
+                                $timerKey = 'evaluator_' . $ev->id;
+                            @endphp
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3">
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $ev->evaluator->name }}</div>
+                                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-900/40">Evaluator</span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-semibold text-slate-800 dark:text-slate-200 text-xs">{{ $ev->speaker?->user?->name ?? 'Speaker' }}</div>
+                                    @if($ev->speaker?->topic) <div class="text-[11px] text-slate-400">&ldquo;{{ $ev->speaker->topic }}&rdquo;</div> @endif
+                                </td>
+                                <td class="p-3 text-center">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                                        ⏱ 2-3 mins
+                                    </span>
+                                </td>
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5">
+                                        <button type="button"
+                                                @click="openTimePicker('{{ $timerKey }}', '{{ addslashes($ev->evaluator->name) }}', '2-3 mins', 'evaluators')"
+                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs cursor-pointer hover:shadow-sm"
+                                                :class="getTimer('{{ $timerKey }}', 'time_taken') 
+                                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60' 
+                                                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'">
+                                            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || 'Set Time'"></span>
+                                            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+                                        <button type="button"
+                                                x-show="getTimer('{{ $timerKey }}', 'time_taken')"
+                                                @click="setTimer('{{ $timerKey }}', 'time_taken', '')"
+                                                class="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                                title="Clear time">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <select :value="getTimer('{{ $timerKey }}', 'status') || 'within_time'"
+                                            @change="setTimer('{{ $timerKey }}', 'status', $event.target.value)"
+                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="within_time">🟢 Within Time</option>
+                                        <option value="over_time">🔴 Over Time</option>
+                                        <option value="under_time">🟡 Under Time</option>
+                                        <option value="disqualified">⚪ Disqualified</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-slate-400">
+                                    No speech evaluations scheduled yet.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Segment 3: Table Topics (TTM) Timer Sheet --}}
+            <div x-show="timerTab === 'ttm'" class="overflow-y-auto flex-1 space-y-4 pr-1">
+                <div class="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 rounded-2xl p-3.5 text-xs text-indigo-900 dark:text-indigo-300 flex items-center justify-between">
+                    <span>💡 <strong>Table Topics Timing Rules:</strong> 1–2 minutes per speaker (green at 1:00, amber at 1:30, red at 2:00, 30s grace to 2:30). Click "Set Time" to launch the interactive timepicker.</span>
+                </div>
+
+                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                                <th class="p-3 w-12 text-center">Slot</th>
+                                <th class="p-3">Speaker & Topic</th>
+                                <th class="p-3 w-28 text-center">Allotted Time</th>
+                                <th class="p-3 w-44 text-center">Actual Time</th>
+                                <th class="p-3 w-44">Qualification Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @forelse($meeting->ttmSpeakers as $ttm)
+                            @php
+                                $timerKey = 'ttm_speaker_' . $ttm->id;
+                            @endphp
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3 text-center">
+                                    <span class="font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full text-xs">#{{ $ttm->slot }}</span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $ttm->user->name }}</div>
+                                    @if($ttm->topic) <div class="text-xs text-slate-500 dark:text-slate-400">&ldquo;{{ $ttm->topic }}&rdquo;</div> @endif
+                                </td>
+                                <td class="p-3 text-center">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                                        ⏱ 1-2 mins
+                                    </span>
+                                </td>
+                                <td class="p-3 text-center">
+                                    <div class="inline-flex items-center gap-1.5">
+                                        <button type="button"
+                                                @click="openTimePicker('{{ $timerKey }}', '{{ addslashes($ttm->user->name) }}', '{{ $ttm->formattedTiming() }}', 'ttm')"
+                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs cursor-pointer hover:shadow-sm"
+                                                :class="getTimer('{{ $timerKey }}', 'time_taken') 
+                                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60' 
+                                                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'">
+                                            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || 'Set Time'"></span>
+                                            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+                                        <button type="button"
+                                                x-show="getTimer('{{ $timerKey }}', 'time_taken')"
+                                                @click="setTimer('{{ $timerKey }}', 'time_taken', '')"
+                                                class="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                                title="Clear time">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <select :value="getTimer('{{ $timerKey }}', 'status') || 'within_time'"
+                                            @change="setTimer('{{ $timerKey }}', 'status', $event.target.value)"
+                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="within_time">🟢 Within Time</option>
+                                        <option value="over_time">🔴 Over Time</option>
+                                        <option value="under_time">🟡 Under Time</option>
+                                        <option value="disqualified">⚪ Disqualified</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-slate-400">
+                                    No Table Topics speakers registered yet.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Modal Footer --}}
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+                <p class="text-xs text-slate-400">Timer records are stored in the official meeting report and PDF minutes.</p>
+                <div class="flex items-center gap-2.5">
+                    <button @click="showTimerSheet = false" type="button"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        Close
+                    </button>
+                    <button @click="saveAllTimerLogs()" :disabled="isSavingTimer" type="button"
+                            class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                        <svg x-show="!isSavingTimer" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="isSavingTimer" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span x-text="isSavingTimer ? 'Saving Timer Sheet…' : 'Save Timer Sheet'"></span>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Unified Interactive Custom Timepicker Popover / Modal (z-60) --}}
+            <div x-show="activeTimePicker !== null"
+                 x-cloak
+                 @click.self="closeTimePicker()"
+                 @keydown.escape.window="closeTimePicker()"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 z-60 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+                
+                <div @click.stop
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+                    
+                    {{-- Header --}}
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-900 dark:text-white" x-text="activeTimePicker?.name || 'Select Time'"></h4>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="text-[10px] font-semibold text-slate-400">Allotted:</span>
+                                <span class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400" x-text="activeTimePicker?.allotted"></span>
+                            </div>
+                        </div>
+                        <button @click="closeTimePicker()" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    {{-- Digital Time Display --}}
+                    <div class="bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/40 rounded-2xl py-3.5 px-4 text-center">
+                        <div class="text-3xl font-extrabold font-mono tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center justify-center gap-2">
+                            <span x-text="pickerMin"></span>
+                            <span class="text-indigo-400 animate-pulse">:</span>
+                            <span x-text="pickerSec"></span>
+                        </div>
+                        <div class="flex items-center justify-center gap-12 text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">
+                            <span>Minutes</span>
+                            <span>Seconds</span>
+                        </div>
+                    </div>
+
+                    {{-- Scrollable Columns for Minutes & Seconds --}}
+                    <div class="grid grid-cols-2 gap-3">
+                        {{-- Minutes Column --}}
+                        <div class="space-y-1.5">
+                            <div class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Minutes</div>
+                            <div class="h-44 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 p-1.5 space-y-1 bg-slate-50/50 dark:bg-slate-800/30">
+                                <template x-for="m in 31" :key="m - 1">
+                                    <button type="button"
+                                            @click="selectPickerMin(String(m - 1).padStart(2, '0'))"
+                                            class="w-full py-1.5 px-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center justify-between"
+                                            :class="pickerMin === String(m - 1).padStart(2, '0')
+                                                ? 'bg-indigo-600 text-white shadow-xs'
+                                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'">
+                                        <span x-text="String(m - 1).padStart(2, '0') + ' min'"></span>
+                                        <span x-show="pickerMin === String(m - 1).padStart(2, '0')">✓</span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        {{-- Seconds Column --}}
+                        <div class="space-y-1.5">
+                            <div class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Seconds</div>
+                            <div class="h-44 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 p-1.5 space-y-1 bg-slate-50/50 dark:bg-slate-800/30">
+                                <template x-for="s in 60" :key="s - 1">
+                                    <button type="button"
+                                            @click="selectPickerSec(String(s - 1).padStart(2, '0'))"
+                                            class="w-full py-1.5 px-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center justify-between"
+                                            :class="pickerSec === String(s - 1).padStart(2, '0')
+                                                ? 'bg-indigo-600 text-white shadow-xs'
+                                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'">
+                                        <span x-text="String(s - 1).padStart(2, '0') + ' sec'"></span>
+                                        <span x-show="pickerSec === String(s - 1).padStart(2, '0')">✓</span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Quick Preset Chips --}}
+                    <div class="space-y-1.5 pt-1">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Presets</div>
+                        <div>
+                            <template x-if="activeTimePicker?.type === 'speakers'">
+                                <div class="flex flex-wrap gap-1.5">
+                                    <template x-for="preset in ['04:30', '05:00', '06:00', '07:00', '07:30']" :key="preset">
+                                        <button type="button"
+                                                @click="selectPickerPreset(preset)"
+                                                class="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg border transition-all"
+                                                :class="(pickerMin + ':' + pickerSec) === preset
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'">
+                                            <span x-text="preset"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="activeTimePicker?.type === 'evaluators'">
+                                <div class="flex flex-wrap gap-1.5">
+                                    <template x-for="preset in ['01:30', '02:00', '02:30', '03:00', '03:30']" :key="preset">
+                                        <button type="button"
+                                                @click="selectPickerPreset(preset)"
+                                                class="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg border transition-all"
+                                                :class="(pickerMin + ':' + pickerSec) === preset
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'">
+                                            <span x-text="preset"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="activeTimePicker?.type === 'ttm'">
+                                <div class="flex flex-wrap gap-1.5">
+                                    <template x-for="preset in ['00:45', '01:00', '01:30', '02:00', '02:30']" :key="preset">
+                                        <button type="button"
+                                                @click="selectPickerPreset(preset)"
+                                                class="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg border transition-all"
+                                                :class="(pickerMin + ':' + pickerSec) === preset
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'">
+                                            <span x-text="preset"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    {{-- Footer --}}
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button @click="clearPickerTime()" type="button"
+                                class="px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors">
+                            Clear Time
+                        </button>
+                        <button @click="applyPickerTime(); closeTimePicker()" type="button"
+                                class="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition-colors">
+                            Done
+                        </button>
+                    </div>
+
+                </div>
+            </div>
 
         </div>
     </div>

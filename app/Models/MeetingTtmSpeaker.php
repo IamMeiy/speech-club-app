@@ -36,4 +36,12 @@ class MeetingTtmSpeaker extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Get the formatted timing duration for this Table Topics speech.
+     */
+    public function formattedTiming(): string
+    {
+        return ! empty($this->duration) ? $this->duration : '1-2 mins';
+    }
 }
