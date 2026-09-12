@@ -518,8 +518,15 @@
                                 @endif
 
                                 @if($canVolunteer && ($isCurrentUser || auth()->user()->can('meetings.update')))
-                                    <button wire:click="relinquishRole({{ $assignedRole->id }})"
-                                            wire:confirm="Are you sure you want to step down from this role?"
+                                    <button type="button"
+                                            x-data
+                                            @click="$confirm({
+                                                title: 'Step Down from Role',
+                                                message: 'Are you sure you want to step down from this role?',
+                                                type: 'warning',
+                                                confirmText: 'Step Down',
+                                                onConfirm: () => $wire.relinquishRole({{ $assignedRole->id }})
+                                            })"
                                             class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 ml-1 transition-colors whitespace-nowrap flex-shrink-0">
                                         Step Down
                                     </button>
@@ -583,8 +590,15 @@
                             <div class="flex items-center gap-2 flex-shrink-0">
                                 <span class="text-xs text-slate-400 font-semibold bg-white dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700 whitespace-nowrap flex-shrink-0">{{ $speaker->duration ?: '5-7 mins' }}</span>
                                 @if($canVolunteer && ($isMySpeech || auth()->user()->can('meetings.update')))
-                                    <button wire:click="relinquishSpeaker({{ $speaker->id }})"
-                                            wire:confirm="Remove this speaker slot?"
+                                    <button type="button"
+                                            x-data
+                                            @click="$confirm({
+                                                title: 'Remove Speaker Slot',
+                                                message: 'Are you sure you want to remove this speaker slot?',
+                                                type: 'warning',
+                                                confirmText: 'Remove',
+                                                onConfirm: () => $wire.relinquishSpeaker({{ $speaker->id }})
+                                            })"
                                             class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 transition-colors whitespace-nowrap flex-shrink-0">
                                         Remove
                                     </button>
@@ -648,8 +662,8 @@
                                     </div>
                                 </div>
                                 @if($hasNotes)
-                                    <div class="text-xs text-slate-600 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 line-clamp-2 leading-relaxed">
-                                        &ldquo;{{ Str::limit($eval->notes, 140) }}&rdquo;
+                                    <div class="text-xs text-slate-700 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/70 dark:border-slate-800 leading-relaxed break-words whitespace-pre-line">
+                                        &ldquo;{{ trim($eval->notes) }}&rdquo;
                                     </div>
                                 @elseif(! $canEditEval)
                                     <p class="text-[11px] text-slate-400 italic">No written evaluation notes posted yet.</p>
@@ -706,8 +720,15 @@
                         </div>
                     </div>
                     @if($canVolunteer && ($isMyTtm || auth()->user()->can('meetings.update')))
-                        <button wire:click="relinquishTtm({{ $ttm->id }})"
-                                wire:confirm="Remove your Table Topics participation?"
+                        <button type="button"
+                                x-data
+                                @click="$confirm({
+                                    title: 'Step Down from Table Topics',
+                                    message: 'Are you sure you want to remove your Table Topics participation?',
+                                    type: 'warning',
+                                    confirmText: 'Step Down',
+                                    onConfirm: () => $wire.relinquishTtm({{ $ttm->id }})
+                                })"
                                 class="text-[11px] font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 transition-colors whitespace-nowrap flex-shrink-0 ml-2">
                             Step Down
                         </button>
