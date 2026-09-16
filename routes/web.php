@@ -24,6 +24,7 @@ use App\Livewire\Roles\RoleIndex;
 use App\Livewire\Users\UserCreate;
 use App\Livewire\Users\UserEdit;
 use App\Livewire\Users\UserIndex;
+use App\Livewire\Users\UserShow;
 use Illuminate\Support\Facades\Route;
 
 // -----------------------------------------------------------------------
@@ -57,6 +58,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('members')->name('members.')->group(function () {
         Route::get('/', UserIndex::class)->name('index');
         Route::get('/create', UserCreate::class)->name('create');
+        Route::get('/{user}', UserShow::class)->name('show');
         Route::get('/{user}/edit', UserEdit::class)->name('edit');
     });
 

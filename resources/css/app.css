@@ -146,6 +146,18 @@
     background: rgba(148, 163, 184, 0.6);
 }
 
+/* Completely hide scrollbars while maintaining full scroll behavior */
+.no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none !important; /* IE and Edge */
+    scrollbar-width: none !important; /* Firefox */
+}
+
 /* Smooth transitions */
 .transition-sidebar {
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);

@@ -67,11 +67,13 @@
                     <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0 text-white font-extrabold text-xs shadow-sm">
+                                <a href="{{ route('members.show', $user) }}" class="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0 text-white font-extrabold text-xs shadow-sm hover:scale-105 transition-transform" title="View {{ $user->name }}">
                                     {{ strtoupper(substr($user->name, 0, 2)) }}
-                                </div>
+                                </a>
                                 <div>
-                                    <p class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $user->name }}</p>
+                                    <a href="{{ route('members.show', $user) }}" class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                                        {{ $user->name }}
+                                    </a>
                                     @if($user->phone)
                                     <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{{ $user->phone }}</p>
                                     @endif
@@ -92,6 +94,14 @@
                         </td>
                         <td class="px-6 py-4 text-right">
                             <div class="flex items-center justify-end gap-1.5">
+                                <a href="{{ route('members.show', $user) }}"
+                                   class="p-2 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors"
+                                   title="View Member Details">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </a>
                                 @can('users.update')
                                 <a href="{{ route('members.edit', $user) }}"
                                    class="p-2 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors"
