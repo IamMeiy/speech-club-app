@@ -330,6 +330,16 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                 <span>Club & Permissions</span>
             </button>
+
+            @if(config('services.ai_assistant.enabled', true))
+            {{-- Tab: AI Speech Coach --}}
+            <button @click="activeTab = 'ai_coach'; setTimeout(() => checkScroll(), 200)"
+                    class="py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors"
+                    :class="activeTab === 'ai_coach' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l1.5 4.5L11 9l-4.5 1.5L5 15l-1.5-4.5L-1 9l4.5-1.5L5 3zM19 3l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/></svg>
+                <span>✨ AI Speech Coach</span>
+            </button>
+            @endif
         </nav>
 
         {{-- Right Scroll Arrow (placed on the RIGHT) --}}
@@ -864,4 +874,129 @@
         </div>
     </div>
 
+    @if(config('services.ai_assistant.enabled', true))
+    {{-- ========================================================================= --}}
+    {{-- TAB 8: AI SPEECH COACH --}}
+    {{-- ========================================================================= --}}
+    <div x-show="activeTab === 'ai_coach'" x-cloak
+         x-data="{
+             copied: false,
+             copyReport() {
+                 const text = this.$refs.aiCoachContent ? this.$refs.aiCoachContent.innerText.trim() : '';
+                 if (text) {
+                     navigator.clipboard.writeText(text);
+                     this.copied = true;
+                     setTimeout(() => this.copied = false, 2000);
+                 }
+             }
+         }">
+
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm transition-colors">
+
+            {{-- Header --}}
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-primary-600 text-white flex items-center justify-center shadow-md shadow-primary-600/30 flex-shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l1.5 4.5L11 9l-4.5 1.5L5 15l-1.5-4.5L-1 9l4.5-1.5L5 3zM19 3l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">AI Speech Coach — {{ $user->name }}</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Personalized coaching insights powered by AI</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 flex-wrap items-center">
+                    {{-- Open in full drawer via Alpine dispatch --}}
+                    <button
+                        @click="$dispatch('open-ai-modal', { userId: {{ $user->id }}, mode: 'coaching' })"
+                        class="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        Open in Drawer
+                    </button>
+
+                    {{-- Generate coaching report via Livewire --}}
+                    <button
+                        wire:click="generateAiCoaching"
+                        wire:loading.attr="disabled"
+                        id="member-ai-coach-btn"
+                        class="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold shadow-md shadow-primary-600/25 transition-all active:scale-[0.98] disabled:opacity-60"
+                    >
+                        <svg wire:loading wire:target="generateAiCoaching" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        <svg wire:loading.remove wire:target="generateAiCoaching" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l1.5 4.5L11 9l-4.5 1.5L5 15l-1.5-4.5L-1 9l4.5-1.5L5 3z"/></svg>
+                        <span wire:loading.remove wire:target="generateAiCoaching">Generate Coaching Report</span>
+                        <span wire:loading wire:target="generateAiCoaching">Analysing...</span>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Quick Action Cards --}}
+            @if(! $aiCoachingReport)
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
+                    @foreach([
+                        ['icon' => '📊', 'title' => 'Speech Activity Analysis',    'desc' => 'Speeches, evaluations, filler word trends, and attendance patterns.',     'action' => 'generateAiCoaching'],
+                        ['icon' => '🎤', 'title' => 'TMOD Speaker Introduction',   'desc' => 'Auto-generate a warm, engaging speaker introduction script for TMOD.',   'action' => 'generateTmodIntro'],
+                        ['icon' => '🗣', 'title' => 'Filler Word Breakdown',       'desc' => 'Analyse filler word trends from Ah-Counter logs and provide tips.',       'action' => 'generateAiCoaching'],
+                    ] as $card)
+                        <button
+                            wire:click="{{ $card['action'] }}"
+                            class="group text-left p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 hover:border-primary-500 hover:bg-primary-50/40 dark:hover:bg-primary-950/30 transition-all shadow-sm"
+                        >
+                            <p class="text-2xl mb-2">{{ $card['icon'] }}</p>
+                            <p class="text-sm font-bold text-slate-800 dark:text-white mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ $card['title'] }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{{ $card['desc'] }}</p>
+                        </button>
+                    @endforeach
+                </div>
+
+                {{-- Empty state --}}
+                <div class="text-center py-10 text-slate-400 dark:text-slate-500">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-30 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3l1.5 4.5L11 9l-4.5 1.5L5 15l-1.5-4.5L-1 9l4.5-1.5L5 3zM19 3l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/>
+                    </svg>
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300">Click a card above or "Generate Coaching Report" to get started</p>
+                    <p class="text-xs mt-1 text-slate-400">Powered by {{ $aiEngineLabel }}</p>
+                </div>
+            @else
+                {{-- AI Response Card with Alpine copy --}}
+                <div class="relative group">
+                    <div class="flex justify-end mb-3">
+                        <button
+                            @click="copyReport()"
+                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 shadow-sm transition-all text-xs font-semibold"
+                            title="Copy to clipboard"
+                        >
+                            <template x-if="!copied">
+                                <span class="flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    <span>Copy</span>
+                                </span>
+                            </template>
+                            <template x-if="copied">
+                                <span class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    <span>Copied!</span>
+                                </span>
+                            </template>
+                        </button>
+                    </div>
+
+                    <div x-ref="aiCoachContent" class="ai-coach-content prose prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-slate-800 dark:prose-headings:text-white prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-li:text-slate-600 dark:prose-li:text-slate-300 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:text-primary-600 dark:prose-code:text-primary-400 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-blockquote:border-primary-500 prose-blockquote:bg-primary-50/50 dark:prose-blockquote:bg-primary-950/30 p-5 sm:p-6 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 leading-relaxed">
+                        {!! \Illuminate\Support\Str::markdown($aiCoachingReport) !!}
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <span class="text-xs text-slate-400 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-primary-500"></span>
+                            {{ $aiEngineLabel }}
+                        </span>
+                        <button wire:click="clearAiCoaching" class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">✕ Clear</button>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+    @endif
 </div>

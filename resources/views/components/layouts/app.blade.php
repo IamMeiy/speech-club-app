@@ -211,6 +211,23 @@
                     </a>
                 @endcan
 
+                @if(config('services.ai_assistant.enabled', true))
+                {{-- AI Assistant --}}
+                <a href="{{ route('ai-assistant.index') }}"
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative
+                          {{ request()->routeIs('ai-assistant.*') ? 'bg-primary-600 text-white shadow-md shadow-primary-600/30 font-semibold' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white' }}"
+                    :class="sidebarCollapsed ? 'justify-center' : ''" :title="sidebarCollapsed ? 'AI Assistant' : ''"
+                    wire:navigate>
+                    {{-- Sparkle / Stars Icon --}}
+                    <svg class="w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 {{ request()->routeIs('ai-assistant.*') ? 'text-white' : 'text-primary-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 3l1.5 4.5L11 9l-4.5 1.5L5 15l-1.5-4.5L-1 9l4.5-1.5L5 3zM19 3l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/>
+                    </svg>
+                    <span x-show="!sidebarCollapsed" class="truncate">AI Assistant</span>
+                    {{-- NEW badge --}}
+                    <span x-show="!sidebarCollapsed" class="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary-500/20 text-primary-200 border border-primary-500/30">NEW</span>
+                </a>
+                @endif
+
                 {{-- Clubs (global users) --}}
                 @can('clubs.view')
                     <a href="{{ route('clubs.index') }}"
@@ -396,6 +413,22 @@
                         </div>
                     </div>
 
+                    @if(config('services.ai_assistant.enabled', true))
+                    {{-- AI Quick-Access Button --}}
+                    <button
+                        id="global-ai-btn"
+                        @click="$dispatch('open-ai-modal')"
+                        class="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold shadow-md shadow-primary-600/25 transition-all hover:shadow-lg hover:shadow-primary-600/35 active:scale-95"
+                        title="Open AI Assistant"
+                        aria-label="Open AI Assistant"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l1.5 4.5L11 9l-4.5 1.5L5 15l-1.5-4.5L-1 9l4.5-1.5L5 3zM19 3l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/>
+                        </svg>
+                        <span class="hidden sm:inline">AI</span>
+                    </button>
+                    @endif
+
                     {{-- Dark / Light Mode Toggle --}}
                     <button @click="toggleDarkMode()"
                         class="p-2 rounded-xl text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-800 dark:hover:text-slate-200 transition-colors"
@@ -540,7 +573,7 @@
             </header>
 
             {{-- Main Scrollable Content --}}
-            <main class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 transition-colors">
+            <main class="flex-1 flex flex-col {{ request()->routeIs('ai-assistant.*') ? 'overflow-hidden p-2 sm:p-3 lg:p-4' : 'overflow-y-auto p-4 sm:p-6 lg:p-8' }} bg-slate-50 dark:bg-slate-950 transition-colors">
                 {{ $slot }}
             </main>
 
@@ -549,6 +582,11 @@
     </div>
 
     @livewireScripts
+
+    @if(config('services.ai_assistant.enabled', true))
+    {{-- Global AI Assistant Drawer --}}
+    <livewire:ai-assistant.global-ai-modal />
+    @endif
 
     {{-- Custom Alert & Confirm Modal --}}
     <x-custom-alert-modal />

@@ -61,6 +61,14 @@ class User extends Authenticatable
     }
 
     /**
+     * AI conversations created by this user.
+     */
+    public function aiConversations(): HasMany
+    {
+        return $this->hasMany(AiConversation::class)->orderBy('updated_at', 'desc');
+    }
+
+    /**
      * Fixed meeting role assignments for this user.
      */
     public function meetingRoles(): HasMany

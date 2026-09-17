@@ -25,6 +25,7 @@ use App\Livewire\Users\UserCreate;
 use App\Livewire\Users\UserEdit;
 use App\Livewire\Users\UserIndex;
 use App\Livewire\Users\UserShow;
+use App\Livewire\AiAssistant\AiAssistantIndex;
 use Illuminate\Support\Facades\Route;
 
 // -----------------------------------------------------------------------
@@ -118,4 +119,9 @@ Route::middleware('auth')->group(function () {
 
     // Profile
     Route::get('/profile', ProfileEdit::class)->name('profile');
+
+    // -----------------------------------------------------------------------
+    // AI Assistant
+    // -----------------------------------------------------------------------
+    Route::get('/ai-assistant', AiAssistantIndex::class)->name('ai-assistant.index');
 });

@@ -8,6 +8,7 @@ use App\Models\MeetingGrammarianLog;
 use App\Models\User;
 use App\Services\ClubAccessService;
 use App\Services\ClubContextService;
+use App\Services\LocalAiService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -20,7 +21,11 @@ class UserShow extends Component
     use WithClubContext, WithPagination;
 
     public User $user;
-    public string $activeTab = 'speeches'; // 'speeches' | 'evaluations' | 'table_topics' | 'roles' | 'attendance' | 'badges' | 'clubs'
+    public string $activeTab = 'speeches'; // 'speeches' | 'evaluations' | 'table_topics' | 'roles' | 'attendance' | 'badges' | 'clubs' | 'ai_coach'
+
+    // AI Coaching state
+    public string $aiCoachingReport = '';
+    public string $aiEngineLabel    = '';
 
     public int $speechesPerPage    = 10;
     public int $evaluationsPerPage = 10;
@@ -28,7 +33,7 @@ class UserShow extends Component
     public int $rolesPerPage       = 10;
     public int $attendancePerPage  = 15;
 
-    public function mount(User $user, ClubAccessService $access): void
+    public function mount(User $user, ClubAccessService $access, LocalAiService $ai): void
     {
         $this->authorize('users.view');
 
@@ -47,7 +52,8 @@ class UserShow extends Component
             }
         }
 
-        $this->user = $user;
+        $this->user          = $user;
+        $this->aiEngineLabel = $ai->engineLabel();
     }
 
     public function setTab(string $tab): void
@@ -221,5 +227,31 @@ class UserShow extends Component
             'badges',
             'stats',
         ));
+    }
+
+    // =========================================================================
+    // AI Speech Coach Actions
+    // =========================================================================
+
+    public function generateAiCoaching(): void
+    {
+        abort_unless(config('services.ai_assistant.enabled', true), 403, 'AI Assistant is currently disabled.');
+        $ai     = app(LocalAiService::class);
+        $clubId = auth()->user()->primaryClub()?->id ?? 0;
+        $this->aiCoachingReport = $ai->generateMemberCoaching($this->user, $clubId);
+        $this->aiEngineLabel    = $ai->engineLabel();
+    }
+
+    public function generateTmodIntro(): void
+    {
+        abort_unless(config('services.ai_assistant.enabled', true), 403, 'AI Assistant is currently disabled.');
+        $ai = app(LocalAiService::class);
+        $this->aiCoachingReport = $ai->generateTmodIntroduction($this->user);
+        $this->aiEngineLabel    = $ai->engineLabel();
+    }
+
+    public function clearAiCoaching(): void
+    {
+        $this->aiCoachingReport = '';
     }
 }

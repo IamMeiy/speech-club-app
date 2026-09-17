@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'ollama' => [
+        'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
+        'model' => env('OLLAMA_MODEL', 'gemma4:e4b'),
+        'timeout' => (int) env('OLLAMA_TIMEOUT', 180),
+    ],
+
+    'ai_assistant' => [
+        'enabled' => filter_var(env('AI_ASSISTANT_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];
