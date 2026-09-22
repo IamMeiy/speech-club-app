@@ -834,7 +834,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Speech Type / Track</label>
-                        <input wire:model="speakerSpeechType" type="text" placeholder="e.g. Pathways Core / Icebreaker"
+                        <input wire:model="speakerSpeechType" type="text" placeholder="e.g. Competent Communication / Ice Breaker"
                                class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                     </div>
                     <div>

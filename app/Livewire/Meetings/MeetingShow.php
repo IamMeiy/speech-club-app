@@ -31,7 +31,7 @@ class MeetingShow extends Component
     public bool $showSpeakerModal = false;
     public ?int $speakerProjectId = null;
     public string $speakerTopic = '';
-    public string $speakerSpeechType = 'Pathways Project';
+    public string $speakerSpeechType = 'Speech Project';
     public string $speakerProject = '';
     public string $speakerDuration = '5-7 mins';
 
@@ -42,7 +42,7 @@ class MeetingShow extends Component
             if ($proj) {
                 $this->speakerProject = $proj->name;
                 $this->speakerDuration = $proj->formattedTiming();
-                $this->speakerSpeechType = $proj->track ?: 'Pathways Project';
+                $this->speakerSpeechType = $proj->track ?: 'Speech Project';
             }
         }
     }

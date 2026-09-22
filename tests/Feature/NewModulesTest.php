@@ -190,9 +190,9 @@ class NewModulesTest extends TestCase
         Livewire::test(\App\Livewire\Projects\ProjectIndex::class)
             ->assertStatus(200)
             ->assertSee('Ice Breaker')
-            ->assertSee('Writing a Speech with Purpose')
+            ->assertSee('Organize Your Speech')
             ->set('search', 'Storytelling')
-            ->assertSee('Connect with Storytelling')
+            ->assertSee('The Folk Tale')
             ->call('openProject', \App\Models\Project::where('name', 'Ice Breaker')->first()->id)
             ->assertSee('Speech Purpose and Objectives');
     }

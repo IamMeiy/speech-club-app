@@ -68,6 +68,6 @@ class Project extends Model
             return 'General';
         }
 
-        return "Level {$this->level}";
+        return "Project {$this->level}";
     }
 }

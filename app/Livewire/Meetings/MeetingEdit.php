@@ -245,7 +245,7 @@ class MeetingEdit extends Component
                 if ($proj && isset($this->speakers[$index])) {
                     $this->speakers[$index]['project']     = $proj->name;
                     $this->speakers[$index]['duration']    = $proj->formattedTiming();
-                    $this->speakers[$index]['speech_type'] = $proj->track ?: 'Pathways Project';
+                    $this->speakers[$index]['speech_type'] = $proj->track ?: 'Speech Project';
                 }
             }
         }

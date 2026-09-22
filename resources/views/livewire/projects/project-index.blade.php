@@ -65,11 +65,11 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                 </div>
-                <span class="text-primary-200 text-xs font-bold uppercase tracking-wider">Pathways & Curriculum</span>
+                <span class="text-primary-200 text-xs font-bold uppercase tracking-wider">Traditional Curriculum & Manuals</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Speech Projects Catalog</h1>
             <p class="text-primary-100 text-xs sm:text-sm mt-1 max-w-xl">
-                Explore speech project requirements, learning objectives, standard durations, and evaluator guidelines.
+                Explore speech project requirements, learning objectives, standard durations, and evaluator guidelines from the Competent Communication & Advanced Series manuals.
             </p>
         </div>
         <div class="flex items-center gap-3">
@@ -95,7 +95,7 @@
         <div class="w-full sm:w-56">
             <select x-model="selectedTrack"
                     class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium">
-                <option value="">All Tracks / Pathways</option>
+                <option value="">All Manuals & Tracks</option>
                 @foreach($tracks as $track)
                     <option value="{{ $track }}">{{ $track }}</option>
                 @endforeach
@@ -106,9 +106,9 @@
         <div class="w-full sm:w-40">
             <select x-model="selectedLevel"
                     class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium">
-                <option value="">All Levels</option>
+                <option value="">All Projects</option>
                 @foreach($levels as $lvl)
-                    <option value="{{ $lvl }}">Level {{ $lvl }}</option>
+                    <option value="{{ $lvl }}">Project {{ $lvl }}</option>
                 @endforeach
             </select>
         </div>

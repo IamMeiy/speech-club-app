@@ -7,7 +7,7 @@
         'id' => $p->id,
         'name' => $p->name,
         'duration' => $p->formattedTiming(),
-        'speech_type' => $p->track ?: 'Pathways Project'
+        'speech_type' => $p->track ?: 'Speech Project'
     ])) }},
     onSelectProject(index, projectId) {
         const p = this.projectsList.find(item => String(item.id) === String(projectId));
@@ -336,7 +336,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Speech Type / Track</label>
-                                <input x-model="speaker.speech_type" type="text" placeholder="e.g. Pathways Core / Ice Breaker"
+                                <input x-model="speaker.speech_type" type="text" placeholder="e.g. Competent Communication / Ice Breaker"
                                        class="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500">
                             </div>
                             <div>
