@@ -809,7 +809,79 @@
     {{-- ================================================================ --}}
     <div x-show="showSpeakerModal"
          x-cloak
-         @click.self="showSpeakerModal = false"
+         x-data="{
+             isCatalogProject: false,
+             onProjectSelect(val) {
+                 const sel = $refs.speakerProjectSelect;
+                 const opt = sel ? sel.options[sel.selectedIndex] : null;
+                 if (val && opt && opt.dataset.name) {
+                     this.isCatalogProject = true;
+                     const name = opt.dataset.name;
+                     const duration = opt.dataset.duration || '5-7 mins';
+                     const track = opt.dataset.track || 'Speech Project';
+
+                     if ($refs.speakerProjectInput) {
+                         $refs.speakerProjectInput.value = name;
+                         $refs.speakerProjectInput.dispatchEvent(new Event('input'));
+                     }
+                     if ($refs.speakerDurationInput) {
+                         $refs.speakerDurationInput.value = duration;
+                         $refs.speakerDurationInput.dispatchEvent(new Event('input'));
+                     }
+                     if ($refs.speakerSpeechTypeInput) {
+                         $refs.speakerSpeechTypeInput.value = track;
+                         $refs.speakerSpeechTypeInput.dispatchEvent(new Event('input'));
+                     }
+
+                     if (typeof $wire !== 'undefined') {
+                         $wire.set('speakerProjectId', parseInt(val), false);
+                         $wire.set('speakerProject', name, false);
+                         $wire.set('speakerDuration', duration, false);
+                         $wire.set('speakerSpeechType', track, false);
+                     }
+                 } else {
+                     this.isCatalogProject = false;
+
+                     if ($refs.speakerProjectInput) {
+                         $refs.speakerProjectInput.value = '';
+                         $refs.speakerProjectInput.dispatchEvent(new Event('input'));
+                     }
+                     if ($refs.speakerDurationInput) {
+                         $refs.speakerDurationInput.value = '5-7 mins';
+                         $refs.speakerDurationInput.dispatchEvent(new Event('input'));
+                     }
+                     if ($refs.speakerSpeechTypeInput) {
+                         $refs.speakerSpeechTypeInput.value = 'Speech Project';
+                         $refs.speakerSpeechTypeInput.dispatchEvent(new Event('input'));
+                     }
+
+                     if (typeof $wire !== 'undefined') {
+                         $wire.set('speakerProjectId', null, false);
+                         $wire.set('speakerProject', '', false);
+                         $wire.set('speakerDuration', '5-7 mins', false);
+                         $wire.set('speakerSpeechType', 'Speech Project', false);
+                     }
+                 }
+             },
+             resetSpeakerForm() {
+                 this.isCatalogProject = false;
+                 if ($refs.speakerProjectSelect) $refs.speakerProjectSelect.value = '';
+                 if ($refs.speakerProjectInput) {
+                     $refs.speakerProjectInput.value = '';
+                     $refs.speakerProjectInput.dispatchEvent(new Event('input'));
+                 }
+                 if ($refs.speakerDurationInput) {
+                     $refs.speakerDurationInput.value = '5-7 mins';
+                     $refs.speakerDurationInput.dispatchEvent(new Event('input'));
+                 }
+                 if ($refs.speakerSpeechTypeInput) {
+                     $refs.speakerSpeechTypeInput.value = 'Speech Project';
+                     $refs.speakerSpeechTypeInput.dispatchEvent(new Event('input'));
+                 }
+             }
+         }"
+         @speaker-signed-up.window="resetSpeakerForm(); showSpeakerModal = false"
+         @click.self="resetSpeakerForm(); showSpeakerModal = false"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -827,7 +899,7 @@
              class="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">Volunteer as Prepared Speaker</h3>
-                <button @click="showSpeakerModal = false" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <button @click="resetSpeakerForm(); showSpeakerModal = false" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
@@ -836,11 +908,16 @@
                 {{-- Project Selector --}}
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Speech Project</label>
-                    <select wire:model.live="speakerProjectId"
+                    <select wire:model="speakerProjectId"
+                            x-ref="speakerProjectSelect"
+                            @change="onProjectSelect($event.target.value)"
                             class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium">
                         <option value="">— Select from Speech Catalog (Auto-fills timing & track) —</option>
                         @foreach($projects as $proj)
-                            <option value="{{ $proj->id }}">
+                            <option value="{{ $proj->id }}"
+                                    data-name="{{ $proj->name }}"
+                                    data-duration="{{ $proj->formattedTiming() }}"
+                                    data-track="{{ $proj->track ?: 'Speech Project' }}">
                                 [{{ $proj->levelBadge() }}] {{ $proj->name }} ({{ $proj->formattedTiming() }})
                             </option>
                         @endforeach
@@ -856,30 +933,35 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Speech Type / Track</label>
-                        <input wire:model="speakerSpeechType" type="text" placeholder="e.g. Competent Communication / Ice Breaker"
+                        <input wire:model="speakerSpeechType"
+                               x-ref="speakerSpeechTypeInput"
+                               type="text" placeholder="e.g. Competent Communication / Ice Breaker"
                                class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                     </div>
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Duration</label>
-                            @if($speakerProjectId)
-                                <span class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold">Project timing</span>
-                            @endif
+                            <span x-show="isCatalogProject" x-cloak class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold">Project timing</span>
                         </div>
-                        <input wire:model="speakerDuration" type="text" placeholder="e.g. 5-7 mins"
-                               @if($speakerProjectId) readonly @endif
-                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold text-primary-600 dark:text-primary-400 @if($speakerProjectId) bg-slate-100/90 dark:bg-slate-800/80 cursor-not-allowed border-dashed select-none @endif">
+                        <input wire:model="speakerDuration"
+                               x-ref="speakerDurationInput"
+                               type="text" placeholder="e.g. 5-7 mins"
+                               :readonly="isCatalogProject"
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold text-primary-600 dark:text-primary-400"
+                               :class="isCatalogProject ? 'bg-slate-100/90 dark:bg-slate-800/80 cursor-not-allowed border-dashed select-none' : ''">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Project Name</label>
-                    <input wire:model="speakerProject" type="text" placeholder="e.g. Writing a Speech with Purpose"
+                    <input wire:model="speakerProject"
+                           x-ref="speakerProjectInput"
+                           type="text" placeholder="e.g. Writing a Speech with Purpose"
                            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 </div>
 
                 <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button type="button" @click="showSpeakerModal = false"
+                    <button type="button" @click="resetSpeakerForm(); showSpeakerModal = false"
                             class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         Cancel
                     </button>

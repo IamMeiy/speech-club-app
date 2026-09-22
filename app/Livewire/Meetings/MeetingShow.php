@@ -36,6 +36,7 @@ class MeetingShow extends Component
     public string $speakerProject = '';
     public string $speakerDuration = '5-7 mins';
 
+    #[Renderless]
     public function updatedSpeakerProjectId($value): void
     {
         if ($value) {
@@ -191,6 +192,21 @@ class MeetingShow extends Component
         if ($alreadySpeaker) {
             $this->dispatch('flash', message: 'You have already registered a speech for this meeting.', type: 'warning');
             return;
+        }
+
+        if ($this->speakerProjectId) {
+            $proj = \App\Models\Project::find($this->speakerProjectId);
+            if ($proj) {
+                if (empty($this->speakerProject)) {
+                    $this->speakerProject = $proj->name;
+                }
+                if (empty($this->speakerDuration) || $this->speakerDuration === '5-7 mins') {
+                    $this->speakerDuration = $proj->formattedTiming();
+                }
+                if (empty($this->speakerSpeechType) || $this->speakerSpeechType === 'Speech Project') {
+                    $this->speakerSpeechType = $proj->track ?: 'Speech Project';
+                }
+            }
         }
 
         $this->validate([

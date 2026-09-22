@@ -600,15 +600,32 @@
         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0" class="fixed bottom-5 right-5 z-50 max-w-sm w-full shadow-2xl"
         style="display: none;">
-        <div :class="type === 'success' ?
-            'bg-white dark:bg-slate-900 border-emerald-500/40 text-emerald-900 dark:text-emerald-200' :
-            'bg-white dark:bg-slate-900 border-red-500/40 text-red-900 dark:text-red-200'"
-            class="flex items-start gap-3 p-4 rounded-2xl border shadow-xl backdrop-blur-md">
+        <div :class="{
+                'border-emerald-500/40 text-emerald-900 dark:text-emerald-200': type === 'success',
+                'border-sky-500/40 text-sky-900 dark:text-sky-200': type === 'info',
+                'border-amber-500/40 text-amber-900 dark:text-amber-200': type === 'warning',
+                'border-red-500/40 text-red-900 dark:text-red-200': type === 'error'
+            }"
+            class="flex items-start gap-3 p-4 rounded-2xl border shadow-xl backdrop-blur-md bg-white dark:bg-slate-900">
+            {{-- Success Icon --}}
             <svg x-show="type === 'success'" class="w-5 h-5 flex-shrink-0 text-emerald-500 mt-0.5" fill="none"
                 stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
+            {{-- Info Icon --}}
+            <svg x-show="type === 'info'" class="w-5 h-5 flex-shrink-0 text-sky-500 mt-0.5" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{-- Warning Icon --}}
+            <svg x-show="type === 'warning'" class="w-5 h-5 flex-shrink-0 text-amber-500 mt-0.5" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            {{-- Error Icon --}}
             <svg x-show="type === 'error'" class="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" fill="none"
                 stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -616,7 +633,13 @@
             </svg>
             <div class="flex-1 min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-wider mb-0.5"
-                    x-text="type === 'success' ? 'Success' : 'Error'"></p>
+                    :class="{
+                        'text-emerald-600 dark:text-emerald-400': type === 'success',
+                        'text-sky-600 dark:text-sky-400': type === 'info',
+                        'text-amber-600 dark:text-amber-400': type === 'warning',
+                        'text-red-600 dark:text-red-400': type === 'error'
+                    }"
+                    x-text="type === 'success' ? 'Success' : (type === 'info' ? 'Notice' : (type === 'warning' ? 'Notice' : 'Error'))"></p>
                 <p class="text-sm font-medium text-slate-700 dark:text-slate-300" x-text="message"></p>
             </div>
             <button @click="show = false"
