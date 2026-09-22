@@ -98,4 +98,63 @@ class UserManagementTest extends TestCase
         $this->assertEquals('+91 88888 77777', $fresh->phone);
         $this->assertEquals($this->cholaPresident->email, $fresh->email);
     }
+
+    public function test_user_can_fetch_roles_via_renderless_action_without_rerendering(): void
+    {
+        Livewire::withoutLazyLoading();
+        $this->actingAs($this->cholaPresident);
+
+        $member = User::factory()->create(['name' => 'Roles Test Member', 'status' => 'active']);
+        $member->clubs()->attach($this->chola->id);
+        $member->assignRole('Member');
+
+        $meeting = \App\Models\Meeting::create([
+            'club_id'        => $this->chola->id,
+            'meeting_number' => 101,
+            'meeting_date'   => now()->subDays(2)->format('Y-m-d'),
+            'start_time'     => '18:00',
+            'end_time'       => '20:00',
+            'status'         => 'completed',
+            'created_by'     => $this->cholaPresident->id,
+        ]);
+
+        $timerRole = \App\Models\MeetingRoleType::where('name', 'Timer')->first();
+        \App\Models\MeetingRole::create([
+            'meeting_id'           => $meeting->id,
+            'user_id'              => $member->id,
+            'meeting_role_type_id' => $timerRole->id,
+        ]);
+
+        $test = Livewire::test(\App\Livewire\Users\UserIndex::class)
+            ->assertSee('Roles Test Member');
+
+        $test->call('getMemberRoles', $member->id)
+            ->assertReturned(function ($data) {
+                return is_array($data)
+                    && $data['user']['name'] === 'Roles Test Member'
+                    && $data['total_taken_count'] === 1
+                    && count($data['taken_roles']) === 1
+                    && $data['taken_roles'][0]['name'] === 'Timer'
+                    && $data['taken_roles'][0]['count'] === 1
+                    && $data['taken_roles'][0]['last_meeting'] === '#101'
+                    && count($data['not_taken_roles']) > 0
+                    && count($data['recently_taken']) === 1
+                    && $data['recently_taken'][0]['role_name'] === 'Timer'
+                    && $data['recently_taken'][0]['meeting_number'] === 101;
+            });
+    }
+
+    public function test_user_cannot_fetch_roles_for_member_from_another_club(): void
+    {
+        Livewire::withoutLazyLoading();
+        $this->actingAs($this->cholaPresident);
+
+        $cheraMember = User::factory()->create(['name' => 'Chera Member', 'status' => 'active']);
+        $cheraMember->clubs()->attach($this->chera->id);
+        $cheraMember->assignRole('Member');
+
+        Livewire::test(\App\Livewire\Users\UserIndex::class)
+            ->call('getMemberRoles', $cheraMember->id)
+            ->assertForbidden();
+    }
 }
