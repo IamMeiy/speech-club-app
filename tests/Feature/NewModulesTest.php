@@ -113,6 +113,20 @@ class NewModulesTest extends TestCase
             'status' => 'scheduled',
         ]);
 
+        $ahRoleType = MeetingRoleType::where('slug', 'ah-counter')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $ahRoleType->id,
+            'user_id' => $user->id,
+        ]);
+
+        $grammarianRoleType = MeetingRoleType::where('slug', 'grammarian')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $grammarianRoleType->id,
+            'user_id' => $user->id,
+        ]);
+
         $this->actingAs($user);
 
         // Ah-counter increment & decrement
@@ -248,6 +262,20 @@ class NewModulesTest extends TestCase
             'status' => 'scheduled',
         ]);
 
+        $ahRoleType = MeetingRoleType::where('slug', 'ah-counter')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $ahRoleType->id,
+            'user_id' => $user->id,
+        ]);
+
+        $grammarianRoleType = MeetingRoleType::where('slug', 'grammarian')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $grammarianRoleType->id,
+            'user_id' => $user->id,
+        ]);
+
         $this->actingAs($user);
 
         // Test Alpine debounced sync method
@@ -295,6 +323,14 @@ class NewModulesTest extends TestCase
         $user->assignRole('Member');
         $user->clubs()->attach($club->id);
 
+        $ahUser = User::factory()->create();
+        $ahUser->assignRole('Member');
+        $ahUser->clubs()->attach($club->id);
+
+        $grammarianUser = User::factory()->create();
+        $grammarianUser->assignRole('Member');
+        $grammarianUser->clubs()->attach($club->id);
+
         $meeting = Meeting::create([
             'club_id' => $club->id,
             'meeting_number' => 205,
@@ -302,9 +338,22 @@ class NewModulesTest extends TestCase
             'status' => 'scheduled',
         ]);
 
-        $this->actingAs($user);
+        $ahRoleType = MeetingRoleType::where('slug', 'ah-counter')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $ahRoleType->id,
+            'user_id' => $ahUser->id,
+        ]);
+
+        $grammarianRoleType = MeetingRoleType::where('slug', 'grammarian')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $grammarianRoleType->id,
+            'user_id' => $grammarianUser->id,
+        ]);
 
         // Step 1: Grammarian enters and submits data
+        $this->actingAs($grammarianUser);
         Livewire::test(MeetingShow::class, ['meeting' => $meeting])
             ->call('saveAllCounts', null, [
                 $user->id => [
@@ -324,6 +373,7 @@ class NewModulesTest extends TestCase
         ]);
 
         // Step 2: Ah-Counter later enters and submits their data
+        $this->actingAs($ahUser);
         Livewire::test(MeetingShow::class, ['meeting' => $meeting])
             ->call('saveAllCounts', [
                 $user->id => [
@@ -350,6 +400,7 @@ class NewModulesTest extends TestCase
         ]);
 
         // Step 3: Grammarian updates their data again
+        $this->actingAs($grammarianUser);
         Livewire::test(MeetingShow::class, ['meeting' => $meeting])
             ->call('saveGrammarianCounts', [
                 $user->id => [
@@ -495,11 +546,22 @@ class NewModulesTest extends TestCase
         $ttmUser->assignRole('Member');
         $ttmUser->clubs()->attach($club->id);
 
+        $timerUser = User::factory()->create();
+        $timerUser->assignRole('Member');
+        $timerUser->clubs()->attach($club->id);
+
         $meeting = Meeting::create([
             'club_id' => $club->id,
             'meeting_number' => 209,
             'meeting_date' => now()->toDateString(),
             'status' => 'in_progress',
+        ]);
+
+        $timerRoleType = MeetingRoleType::where('slug', 'timer')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $timerRoleType->id,
+            'user_id' => $timerUser->id,
         ]);
 
         $speaker = MeetingSpeaker::create([
@@ -524,7 +586,7 @@ class NewModulesTest extends TestCase
             'duration' => '1-2 mins',
         ]);
 
-        $this->actingAs($speakerUser);
+        $this->actingAs($timerUser);
 
         Livewire::test(MeetingShow::class, ['meeting' => $meeting])
             ->assertStatus(200)
@@ -585,6 +647,266 @@ class NewModulesTest extends TestCase
             'time_taken' => '01:45',
             'status' => 'within_time',
         ]);
+    }
+
+    public function test_unauthorized_user_cannot_modify_timer_logs(): void
+    {
+        $club = Club::first();
+        $user = User::factory()->create();
+        $user->assignRole('Member');
+        $user->clubs()->attach($club->id);
+
+        $timerUser = User::factory()->create();
+        $timerUser->assignRole('Member');
+        $timerUser->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 210,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'in_progress',
+        ]);
+
+        $timerRoleType = MeetingRoleType::where('slug', 'timer')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $timerRoleType->id,
+            'user_id' => $timerUser->id,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveTimerLogs', [
+                'prepared_speaker_1' => [
+                    'speaker_type' => 'prepared_speaker',
+                    'reference_id' => 1,
+                    'user_id' => $user->id,
+                    'time_taken' => '05:00',
+                    'status' => 'within_time',
+                ],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_unauthorized_user_cannot_modify_live_counters(): void
+    {
+        $club = Club::first();
+        $user = User::factory()->create();
+        $user->assignRole('Member');
+        $user->clubs()->attach($club->id);
+
+        $ahUser = User::factory()->create();
+        $ahUser->assignRole('Member');
+        $ahUser->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 211,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'in_progress',
+        ]);
+
+        $ahRoleType = MeetingRoleType::where('slug', 'ah-counter')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $ahRoleType->id,
+            'user_id' => $ahUser->id,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('incrementFiller', $user->id, 'ah_count')
+            ->assertForbidden();
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('incrementWordOfDay', $user->id)
+            ->assertForbidden();
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveAllCounts', [
+                $user->id => ['ah_count' => 5],
+            ], null, 'ah_counter')
+            ->assertForbidden();
+    }
+
+    public function test_meeting_facilitator_can_modify_timer_and_counters_when_unassigned(): void
+    {
+        $club = Club::first();
+        $tmodUser = User::factory()->create();
+        $tmodUser->assignRole('Member');
+        $tmodUser->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 212,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'in_progress',
+        ]);
+
+        $tmodRoleType = MeetingRoleType::where('slug', 'tmod')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $tmodRoleType->id,
+            'user_id' => $tmodUser->id,
+        ]);
+
+        $this->actingAs($tmodUser);
+
+        // Can modify filler count
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('incrementFiller', $tmodUser->id, 'ah_count')
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('meeting_ah_counter_logs', [
+            'meeting_id' => $meeting->id,
+            'user_id' => $tmodUser->id,
+            'ah_count' => 1,
+        ]);
+
+        // Can modify timer
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveTimerLogs', [
+                'prepared_speaker_99' => [
+                    'speaker_type' => 'prepared_speaker',
+                    'reference_id' => 99,
+                    'user_id' => $tmodUser->id,
+                    'time_taken' => '06:00',
+                    'status' => 'within_time',
+                ],
+            ])
+            ->assertDispatched('timer-logs-saved');
+    }
+
+    public function test_club_admin_can_modify_timer_and_counters(): void
+    {
+        $club = Club::first();
+        $adminUser = User::factory()->create();
+        $adminUser->assignRole('Admin');
+        $adminUser->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 213,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($adminUser);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('incrementWordOfDay', $adminUser->id)
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('meeting_grammarian_logs', [
+            'meeting_id' => $meeting->id,
+            'user_id' => $adminUser->id,
+            'word_of_day_count' => 1,
+        ]);
+    }
+
+    public function test_completed_meeting_cannot_be_modified_by_anyone(): void
+    {
+        $club = Club::first();
+        $admin = User::factory()->create();
+        $admin->assignRole('Super Admin');
+        $admin->clubs()->attach($club->id);
+
+        $member = User::factory()->create();
+        $member->assignRole('Member');
+        $member->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 214,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'completed',
+        ]);
+
+        $roleType = MeetingRoleType::first();
+        $existingRole = MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $roleType->id,
+            'user_id' => $member->id,
+        ]);
+
+        $speaker = MeetingSpeaker::create([
+            'meeting_id' => $meeting->id,
+            'user_id' => $member->id,
+            'speech_type' => 'Standard',
+            'topic' => 'My Great Speech',
+        ]);
+
+        $ttm = MeetingTtmSpeaker::create([
+            'meeting_id' => $meeting->id,
+            'user_id' => $member->id,
+            'slot' => 1,
+            'topic' => 'My TT Topic',
+        ]);
+
+        $eval = MeetingEvaluation::create([
+            'meeting_id' => $meeting->id,
+            'speaker_id' => $speaker->id,
+            'evaluator_user_id' => $admin->id,
+            'notes' => 'Original evaluation',
+        ]);
+
+        // 1. Even Super Admin / Admin cannot save timer logs on completed meeting
+        $this->actingAs($admin);
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveTimerLogs', [
+                'prepared_speaker_' . $speaker->id => [
+                    'speaker_type' => 'prepared_speaker',
+                    'reference_id' => $speaker->id,
+                    'user_id' => $member->id,
+                    'time_taken' => '05:30',
+                    'status' => 'within_time',
+                ],
+            ])
+            ->assertStatus(403);
+
+        // 2. Cannot save live counter counts
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveAllCounts', [$member->id => ['ah_count' => 5]], null, 'ah_counter')
+            ->assertStatus(403);
+
+        // 3. Cannot increment/decrement counters
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('incrementFiller', $member->id, 'ah_count')
+            ->assertStatus(403);
+
+        // 4. Cannot save evaluation notes
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('saveEvaluationNotes', $eval->id, 'Hacked notes')
+            ->assertStatus(403);
+
+        // 5. Cannot volunteer for roles, speakers, or TTM
+        $this->actingAs($member);
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('signUpForRole', $roleType->id)
+            ->assertStatus(403);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('signUpAsSpeaker')
+            ->assertStatus(403);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('signUpForTtm')
+            ->assertStatus(403);
+
+        // 6. Cannot relinquish existing roles
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('relinquishRole', $existingRole->id)
+            ->assertStatus(403);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('relinquishSpeaker', $speaker->id)
+            ->assertStatus(403);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->call('relinquishTtm', $ttm->id)
+            ->assertStatus(403);
     }
 }
 

@@ -9,6 +9,9 @@
          ahCounts: {{ !empty($initialAhLogs) ? Js::from($initialAhLogs) : '{}' }},
          grammarCounts: {{ !empty($initialGrammarLogs) ? Js::from($initialGrammarLogs) : '{}' }},
          isSavingCounts: false,
+         canManageTimer: {{ $canManageTimer ? 'true' : 'false' }},
+         canManageAhCounter: {{ $canManageAhCounter ? 'true' : 'false' }},
+         canManageGrammarian: {{ $canManageGrammarian ? 'true' : 'false' }},
 
          getAh(userId, type) {
              if (!this.ahCounts[userId]) {
@@ -24,6 +27,7 @@
          },
 
          incrementAh(userId, type) {
+             if (!this.canManageAhCounter) return;
              if (!this.ahCounts[userId]) {
                  this.ahCounts[userId] = { ah_count: 0, um_count: 0, er_count: 0, like_count: 0, you_know_count: 0, so_count: 0, repeats_count: 0, other_count: 0 };
              }
@@ -31,6 +35,7 @@
          },
 
          decrementAh(userId, type) {
+             if (!this.canManageAhCounter) return;
              if (!this.ahCounts[userId]) return;
              if (this.ahCounts[userId][type] > 0) {
                  this.ahCounts[userId][type]--;
@@ -42,6 +47,7 @@
          },
 
          incrementWod(userId) {
+             if (!this.canManageGrammarian) return;
              if (!this.grammarCounts[userId]) {
                  this.grammarCounts[userId] = { word_of_day_count: 0, good_phrases: '', awkward_phrases: '', notes: '' };
              }
@@ -49,6 +55,7 @@
          },
 
          decrementWod(userId) {
+             if (!this.canManageGrammarian) return;
              if (!this.grammarCounts[userId]) return;
              if (this.grammarCounts[userId].word_of_day_count > 0) {
                  this.grammarCounts[userId].word_of_day_count--;
@@ -57,6 +64,8 @@
 
          saveFinalCounts(role = null) {
              const targetRole = role || this.activeTab;
+             if (targetRole === 'ah_counter' && !this.canManageAhCounter) return;
+             if (targetRole === 'grammarian' && !this.canManageGrammarian) return;
              this.isSavingCounts = true;
 
              let cleanAh = null;
@@ -108,6 +117,10 @@
           },
 
           saveGrammarNotesModal() {
+              if (!this.canManageGrammarian) {
+                  this.showGrammarModal = false;
+                  return;
+              }
               if (this.grammarModalUserId) {
                   if (!this.grammarCounts[this.grammarModalUserId]) {
                       this.grammarCounts[this.grammarModalUserId] = { word_of_day_count: 0, good_phrases: '', awkward_phrases: '', notes: '' };
@@ -177,6 +190,7 @@
           },
 
           setTimer(key, field, val) {
+              if (!this.canManageTimer) return;
               if (!this.timerLogs[key]) {
                   this.timerLogs[key] = { time_taken: '', status: 'within_time', notes: '' };
               }
@@ -189,6 +203,7 @@
           pickerSec: '00',
 
           openTimePicker(key, name, allotted, type) {
+              if (!this.canManageTimer) return;
               this.activeTimePicker = { key, name, allotted, type };
               const current = this.getTimer(key, 'time_taken');
               if (current && typeof current === 'string' && current.includes(':')) {
@@ -240,6 +255,7 @@
           },
 
           saveAllTimerLogs() {
+              if (!this.canManageTimer) return;
               this.isSavingTimer = true;
               const payload = [];
 
@@ -247,7 +263,7 @@
               payload.push({
                   speaker_type: 'prepared_speaker',
                   reference_id: {{ $sp->id }},
-                  user_id: {{ $sp->user_id }},
+                  user_id: {{ $sp->user_id ?? 'null' }},
                   allotted_time: '{{ addslashes($sp->formattedTiming()) }}',
                   time_taken: this.getTimer('prepared_speaker_{{ $sp->id }}', 'time_taken'),
                   status: this.getTimer('prepared_speaker_{{ $sp->id }}', 'status') || 'within_time',
@@ -259,7 +275,7 @@
               payload.push({
                   speaker_type: 'evaluator',
                   reference_id: {{ $ev->id }},
-                  user_id: {{ $ev->evaluator_user_id }},
+                  user_id: {{ $ev->evaluator_user_id ?? 'null' }},
                   allotted_time: '2-3 mins',
                   time_taken: this.getTimer('evaluator_{{ $ev->id }}', 'time_taken'),
                   status: this.getTimer('evaluator_{{ $ev->id }}', 'status') || 'within_time',
@@ -271,7 +287,7 @@
               payload.push({
                   speaker_type: 'ttm_speaker',
                   reference_id: {{ $ttm->id }},
-                  user_id: {{ $ttm->user_id }},
+                  user_id: {{ $ttm->user_id ?? 'null' }},
                   allotted_time: '1-2 mins',
                   time_taken: this.getTimer('ttm_speaker_{{ $ttm->id }}', 'time_taken'),
                   status: this.getTimer('ttm_speaker_{{ $ttm->id }}', 'status') || 'within_time',
@@ -303,9 +319,15 @@
                     <div class="flex items-center gap-3">
                         <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Meeting #{{ $meeting->meeting_number }}</h1>
                         <span class="text-xs font-semibold px-3 py-1 rounded-full {{ $meeting->statusColor() }}">{{ ucfirst($meeting->status) }}</span>
+                        @if($isMeetingLocked)
+                            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                <span>Locked</span>
+                            </span>
+                        @endif
                     </div>
                     <p class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
-                        {{ $meeting->club->name }} &bull; {{ $meeting->meeting_date->format('d F Y') }}
+                        {{ $meeting->club?->name ?? 'Speech Club' }} &bull; {{ $meeting->meeting_date->format('d F Y') }}
                         @if($meeting->formattedTime())
                             &bull; <span class="font-semibold text-slate-700 dark:text-slate-300">{{ $meeting->formattedTime() }}</span>
                         @endif
@@ -347,7 +369,7 @@
                 </span>
 
                 {{-- Live Facilitator Tools Button --}}
-                <button @click="showLiveTools = true; activeTab = 'ah_counter'" type="button"
+                <button @click="showTimerSheet = false; showLiveTools = true; activeTab = 'ah_counter'" type="button"
                         class="inline-flex items-center gap-2 px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
                     <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
@@ -356,7 +378,7 @@
                 </button>
 
                 {{-- Standalone Timer Sheet Button --}}
-                <button @click="showTimerSheet = true" type="button"
+                <button @click="showLiveTools = false; showTimerSheet = true" type="button"
                         class="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
                     <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -432,9 +454,9 @@
                 </div>
             </div>
             <div class="self-start sm:self-center flex-shrink-0">
-                <button @click="showLiveTools = true; activeTab = 'grammarian'" type="button"
+                <button @click="showTimerSheet = false; showLiveTools = true; activeTab = 'grammarian'" type="button"
                         class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-[0.98]">
-                    Tally Word Usage →
+                    <span x-text="canManageGrammarian ? 'Tally Word Usage →' : 'View Word Usage →'"></span>
                 </button>
             </div>
         </div>
@@ -582,7 +604,7 @@
                         <div class="flex items-center justify-between gap-3">
                             <div class="flex items-center gap-2.5 min-w-0 flex-1">
                                 <span class="text-xs font-extrabold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2.5 py-0.5 rounded-full flex-shrink-0">#{{ $speaker->slot }}</span>
-                                <span class="font-bold text-slate-900 dark:text-white text-sm truncate">{{ $speaker->user->name }}</span>
+                                <span class="font-bold text-slate-900 dark:text-white text-sm truncate">{{ $speaker->user?->name ?? 'Speaker' }}</span>
                                 @if($isMySpeech)
                                     <span class="text-[10px] font-extrabold bg-primary-100 dark:bg-primary-900/60 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-md whitespace-nowrap flex-shrink-0">You</span>
                                 @endif
@@ -629,7 +651,7 @@
                         @if($speaker->evaluation)
                             @php
                                 $eval = $speaker->evaluation;
-                                $canEditEval = ($eval->evaluator_user_id === $currentUserId) || auth()->user()->can('meetings.update') || auth()->user()->isSuperAdmin();
+                                $canEditEval = ! $isMeetingLocked && (($eval->evaluator_user_id === $currentUserId) || auth()->user()->can('meetings.update') || auth()->user()->isSuperAdmin());
                                 $hasNotes = !empty(trim($eval->notes ?? ''));
                             @endphp
                             <div class="mt-3 ml-8 p-3.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/60 shadow-xs space-y-2">
@@ -639,13 +661,13 @@
                                             E
                                         </div>
                                         <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
-                                            Evaluator: <span class="font-bold text-slate-900 dark:text-white">{{ $eval->evaluator->name }}</span>
+                                            Evaluator: <span class="font-bold text-slate-900 dark:text-white">{{ $eval->evaluator?->name ?? 'Evaluator' }}</span>
                                         </span>
                                     </div>
                                     <div class="flex items-center gap-1.5 flex-shrink-0">
                                         @if($hasNotes)
                                             <button type="button"
-                                                    @click="openEvalModal({{ $eval->id }}, '{{ addslashes($speaker->user->name) }}', '{{ addslashes($eval->evaluator->name) }}', '{{ addslashes($speaker->topic ?: 'Speech #' . $speaker->slot) }}', {{ Js::from($eval->notes) }}, {{ $canEditEval ? 'true' : 'false' }})"
+                                                    @click="openEvalModal({{ $eval->id }}, '{{ addslashes($speaker->user?->name ?? 'Speaker') }}', '{{ addslashes($eval->evaluator?->name ?? 'Evaluator') }}', '{{ addslashes($speaker->topic ?: 'Speech #' . $speaker->slot) }}', {{ Js::from($eval->notes) }}, {{ $canEditEval ? 'true' : 'false' }})"
                                                     class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/60 rounded-lg transition-colors whitespace-nowrap flex-shrink-0">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                                 <span>Read Feedback</span>
@@ -653,7 +675,7 @@
                                         @endif
                                         @if($canEditEval)
                                             <button type="button"
-                                                    @click="openEvalModal({{ $eval->id }}, '{{ addslashes($speaker->user->name) }}', '{{ addslashes($eval->evaluator->name) }}', '{{ addslashes($speaker->topic ?: 'Speech #' . $speaker->slot) }}', {{ Js::from($eval->notes ?? '') }}, true)"
+                                                    @click="openEvalModal({{ $eval->id }}, '{{ addslashes($speaker->user?->name ?? 'Speaker') }}', '{{ addslashes($eval->evaluator?->name ?? 'Evaluator') }}', '{{ addslashes($speaker->topic ?: 'Speech #' . $speaker->slot) }}', {{ Js::from($eval->notes ?? '') }}, true)"
                                                     class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-lg transition-colors whitespace-nowrap flex-shrink-0">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                                 <span>{{ $hasNotes ? 'Edit Notes' : '+ Write Feedback' }}</span>
@@ -711,7 +733,7 @@
                         <span class="text-xs font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 sm:mt-0">#{{ $ttm->slot }}</span>
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <p class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">{{ $ttm->user->name }}</p>
+                                <p class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">{{ $ttm->user?->name ?? 'Participant' }}</p>
                                 @if($isMyTtm)
                                     <span class="text-[10px] font-extrabold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md whitespace-nowrap flex-shrink-0">You</span>
                                 @endif
@@ -861,9 +883,11 @@
                             class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         Cancel
                     </button>
-                    <button type="submit"
-                            class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
-                        Confirm Volunteer
+                    <button type="submit" wire:loading.attr="disabled"
+                            class="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
+                        <svg wire:loading wire:target="signUpAsSpeaker" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span wire:loading.remove wire:target="signUpAsSpeaker">Confirm Volunteer</span>
+                        <span wire:loading wire:target="signUpAsSpeaker">Signing up…</span>
                     </button>
                 </div>
             </form>
@@ -914,9 +938,11 @@
                             class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         Cancel
                     </button>
-                    <button type="submit"
-                            class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
-                        Join Table Topics
+                    <button type="submit" wire:loading.attr="disabled"
+                            class="inline-flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
+                        <svg wire:loading wire:target="signUpForTtm" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span wire:loading.remove wire:target="signUpForTtm">Join Table Topics</span>
+                        <span wire:loading wire:target="signUpForTtm">Joining…</span>
                     </button>
                 </div>
             </form>
@@ -987,7 +1013,8 @@
                     </div>
 
                     {{-- Top Header Quick Submit --}}
-                    <button @click="saveFinalCounts(activeTab)" :disabled="isSavingCounts" type="button"
+                    <button x-show="(activeTab === 'ah_counter' && canManageAhCounter) || (activeTab === 'grammarian' && canManageGrammarian)"
+                            @click="saveFinalCounts(activeTab)" :disabled="isSavingCounts" type="button"
                             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition-all">
                         <svg x-show="!isSavingCounts" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         <svg x-show="isSavingCounts" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
@@ -1002,10 +1029,29 @@
 
             {{-- Tab 1: Live Ah-Counter --}}
             <div x-show="activeTab === 'ah_counter'" class="overflow-y-auto flex-1 space-y-4 pr-1">
-                <div class="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between">
-                    <span>💡 <strong>Ah-Counter Mode:</strong> Tap <code class="px-1.5 py-0.5 bg-amber-200/50 dark:bg-amber-900/50 rounded font-bold">+</code> or <code class="px-1.5 py-0.5 bg-amber-200/50 dark:bg-amber-900/50 rounded font-bold">-</code>. Changes update instantly on screen with 0ms delay!</span>
-                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Ah-Counter&quot; when meeting ends</span>
+                @if($isMeetingLocked)
+                <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">🔒 Meeting Finalized</span>
+                        <span>This meeting is completed. Official tallies and counts are finalized and locked in read-only mode.</span>
+                    </div>
                 </div>
+                @elseif($canManageAhCounter)
+                <div class="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl p-3.5 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>💡 <strong>Ah-Counter Mode:</strong> Tap <code class="px-1.5 py-0.5 bg-emerald-200/50 dark:bg-emerald-900/50 rounded font-bold">+</code> or <code class="px-1.5 py-0.5 bg-emerald-200/50 dark:bg-emerald-900/50 rounded font-bold">-</code> to tally filler words. (Assigned: <strong>{{ $assignedAhCounterName }}</strong>)</span>
+                    </div>
+                    <span class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Click &quot;Submit Ah-Counter&quot; when meeting ends</span>
+                </div>
+                @else
+                <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">View-Only Mode</span>
+                        <span>Only the assigned Ah-Counter (<strong>{{ $assignedAhCounterName }}</strong>), meeting facilitators, or club officers can modify filler counts.</span>
+                    </div>
+                </div>
+                @endif
 
                 <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
                     <table class="w-full text-left text-xs">
@@ -1018,7 +1064,7 @@
                                 <th class="p-3 text-center">So / Well</th>
                                 <th class="p-3 text-center">Repeats</th>
                                 <th class="p-3 text-center">Other</th>
-                                <th class="p-3 text-center font-bold">Total</th>
+                                <th class="p-3 text-center">Total</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1036,11 +1082,11 @@
                                 {{-- Ah / Um --}}
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
-                                        <button @click="decrementAh({{ $member['id'] }}, 'ah_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="decrementAh({{ $member['id'] }}, 'ah_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
                                         <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'ah_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
                                               x-text="getAh({{ $member['id'] }}, 'ah_count')"></span>
-                                        <button @click="incrementAh({{ $member['id'] }}, 'ah_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="incrementAh({{ $member['id'] }}, 'ah_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
                                     </div>
                                 </td>
@@ -1048,11 +1094,11 @@
                                 {{-- Er --}}
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
-                                        <button @click="decrementAh({{ $member['id'] }}, 'er_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="decrementAh({{ $member['id'] }}, 'er_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
                                         <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'er_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
                                               x-text="getAh({{ $member['id'] }}, 'er_count')"></span>
-                                        <button @click="incrementAh({{ $member['id'] }}, 'er_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="incrementAh({{ $member['id'] }}, 'er_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
                                     </div>
                                 </td>
@@ -1060,11 +1106,11 @@
                                 {{-- Like --}}
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
-                                        <button @click="decrementAh({{ $member['id'] }}, 'like_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="decrementAh({{ $member['id'] }}, 'like_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
                                         <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'like_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
                                               x-text="getAh({{ $member['id'] }}, 'like_count')"></span>
-                                        <button @click="incrementAh({{ $member['id'] }}, 'like_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="incrementAh({{ $member['id'] }}, 'like_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
                                     </div>
                                 </td>
@@ -1072,11 +1118,11 @@
                                 {{-- So / Well --}}
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
-                                        <button @click="decrementAh({{ $member['id'] }}, 'so_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="decrementAh({{ $member['id'] }}, 'so_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
                                         <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'so_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
                                               x-text="getAh({{ $member['id'] }}, 'so_count')"></span>
-                                        <button @click="incrementAh({{ $member['id'] }}, 'so_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="incrementAh({{ $member['id'] }}, 'so_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
                                     </div>
                                 </td>
@@ -1084,11 +1130,11 @@
                                 {{-- Repeats --}}
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
-                                        <button @click="decrementAh({{ $member['id'] }}, 'repeats_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="decrementAh({{ $member['id'] }}, 'repeats_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
                                         <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'repeats_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
                                               x-text="getAh({{ $member['id'] }}, 'repeats_count')"></span>
-                                        <button @click="incrementAh({{ $member['id'] }}, 'repeats_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="incrementAh({{ $member['id'] }}, 'repeats_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
                                     </div>
                                 </td>
@@ -1096,11 +1142,11 @@
                                 {{-- Other --}}
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
-                                        <button @click="decrementAh({{ $member['id'] }}, 'other_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="decrementAh({{ $member['id'] }}, 'other_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform">-</button>
                                         <span class="w-5 font-bold" :class="getAh({{ $member['id'] }}, 'other_count') > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400'"
                                               x-text="getAh({{ $member['id'] }}, 'other_count')"></span>
-                                        <button @click="incrementAh({{ $member['id'] }}, 'other_count')" type="button"
+                                        <button x-show="canManageAhCounter" @click="incrementAh({{ $member['id'] }}, 'other_count')" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-700 font-bold hover:bg-emerald-50 text-emerald-600 active:scale-110 transition-transform">+</button>
                                     </div>
                                 </td>
@@ -1128,16 +1174,34 @@
 
             {{-- Tab 2: Grammarian Tracker --}}
             <div x-show="activeTab === 'grammarian'" class="overflow-y-auto flex-1 space-y-4 pr-1">
-                <div class="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-3.5 text-xs text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                        <span class="font-bold">Word of the Day:</span>
-                        <span class="font-extrabold text-sm ml-1 text-amber-950 dark:text-amber-200">{{ $meeting->word_of_the_day ?: 'Not specified' }}</span>
-                        @if($meeting->word_definition)
-                            <span class="text-[11px] text-amber-900/70 dark:text-amber-300/70 ml-1 italic">&mdash; {{ $meeting->word_definition }}</span>
-                        @endif
+                @if($isMeetingLocked)
+                <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 text-xs text-slate-600 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">🔒 Meeting Finalized</span>
+                        <span>Word of the Day: <strong>{{ $meeting->word_of_the_day ?: 'Not specified' }}</strong> &bull; This meeting is completed. Records and notes are locked in read-only mode.</span>
                     </div>
-                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Click &quot;Submit Grammarian&quot; when meeting ends</span>
                 </div>
+                @elseif($canManageGrammarian)
+                <div class="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl p-3.5 text-xs text-emerald-800 dark:text-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block mr-1"></span>
+                        <span class="font-bold">Word of the Day:</span>
+                        <span class="font-extrabold text-sm ml-1 text-emerald-950 dark:text-emerald-200">{{ $meeting->word_of_the_day ?: 'Not specified' }}</span>
+                        @if($meeting->word_definition)
+                            <span class="text-[11px] text-emerald-900/70 dark:text-emerald-300/70 ml-1 italic">&mdash; {{ $meeting->word_definition }}</span>
+                        @endif
+                        <span class="ml-2 text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">(Assigned: {{ $assignedGrammarianName }})</span>
+                    </div>
+                    <span class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Click &quot;Submit Grammarian&quot; when meeting ends</span>
+                </div>
+                @else
+                <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 text-xs text-slate-600 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">View-Only Mode</span>
+                        <span>Word of the Day: <strong>{{ $meeting->word_of_the_day ?: 'Not specified' }}</strong> &bull; Only the assigned Grammarian (<strong>{{ $assignedGrammarianName }}</strong>), meeting facilitators, or club officers can modify counts and notes.</span>
+                    </div>
+                </div>
+                @endif
 
                 <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
                     <table class="w-full text-left text-xs">
@@ -1152,9 +1216,6 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                             @forelse($meetingParticipants as $member)
-                            @php
-                                $log = $meeting->grammarianLogs->firstWhere('user_id', $member['id']);
-                            @endphp
                             <tr x-show="matchesSearch('{{ addslashes($member['name']) }}', '{{ addslashes(implode(' ', $member['roles'])) }}')"
                                 class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                                 <td class="p-3">
@@ -1168,11 +1229,11 @@
                                 {{-- Word of Day Counter (0ms latency) --}}
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-1 rounded-xl">
-                                        <button @click="decrementWod({{ $member['id'] }})" type="button"
+                                        <button x-show="canManageGrammarian" @click="decrementWod({{ $member['id'] }})" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-800 font-bold text-amber-700 dark:text-amber-300 shadow-xs active:scale-90 transition-transform">-</button>
                                         <span class="w-5 font-bold text-amber-800 dark:text-amber-300"
                                               x-text="getWod({{ $member['id'] }})"></span>
-                                        <button @click="incrementWod({{ $member['id'] }})" type="button"
+                                        <button x-show="canManageGrammarian" @click="incrementWod({{ $member['id'] }})" type="button"
                                                 class="w-5 h-5 rounded-lg bg-white dark:bg-slate-800 font-bold text-amber-700 dark:text-amber-300 shadow-xs active:scale-110 transition-transform">+</button>
                                     </div>
                                 </td>
@@ -1191,7 +1252,7 @@
                                 <td class="p-3 text-right">
                                      <button @click="openGrammarNotes({{ $member['id'] }}, '{{ addslashes($member['name']) }}')" type="button"
                                              class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-semibold transition-colors active:scale-95">
-                                         Edit Notes
+                                         <span x-text="canManageGrammarian ? 'Edit Notes' : 'View Notes'"></span>
                                      </button>
                                 </td>
                             </tr>
@@ -1218,7 +1279,8 @@
                             class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         Close
                     </button>
-                    <button @click="saveFinalCounts(activeTab)" :disabled="isSavingCounts" type="button"
+                    <button x-show="(activeTab === 'ah_counter' && canManageAhCounter) || (activeTab === 'grammarian' && canManageGrammarian)"
+                            @click="saveFinalCounts(activeTab)" :disabled="isSavingCounts" type="button"
                             class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition-all">
                         <svg x-show="!isSavingCounts" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         <svg x-show="isSavingCounts" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
@@ -1264,21 +1326,25 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Good / Eloquent Phrases</label>
                     <textarea x-model="grammarModalGoodPhrases" rows="3" placeholder="Quotes, metaphors, strong imagery used by this speaker…"
+                              :readonly="!canManageGrammarian"
+                              :class="!canManageGrammarian ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed text-slate-600 dark:text-slate-300' : ''"
                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Awkward / Grammatical Corrections</label>
                     <textarea x-model="grammarModalAwkwardPhrases" rows="3" placeholder="Incomplete sentences, misplaced modifiers, mispronunciations…"
+                              :readonly="!canManageGrammarian"
+                              :class="!canManageGrammarian ? 'bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed text-slate-600 dark:text-slate-300' : ''"
                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"></textarea>
                 </div>
 
                 <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                     <button type="button" @click="showGrammarModal = false"
                             class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                        Cancel
+                        <span x-text="canManageGrammarian ? 'Cancel' : 'Close'"></span>
                     </button>
-                    <button type="submit"
+                    <button x-show="canManageGrammarian" type="submit"
                             class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all active:scale-95">
                         Done
                     </button>
@@ -1443,7 +1509,7 @@
                     </div>
 
                     {{-- Header Quick Save --}}
-                    <button @click="saveAllTimerLogs()" :disabled="isSavingTimer" type="button"
+                    <button x-show="canManageTimer" @click="saveAllTimerLogs()" :disabled="isSavingTimer" type="button"
                             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition-all">
                         <svg x-show="!isSavingTimer" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         <svg x-show="isSavingTimer" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
@@ -1455,6 +1521,31 @@
                     </button>
                 </div>
             </div>
+
+            @if($isMeetingLocked)
+            <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">🔒 Meeting Finalized</span>
+                    <span>This meeting is completed. Official speech timings and qualification records are locked in read-only mode.</span>
+                </div>
+            </div>
+            @elseif($canManageTimer)
+            <div class="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 rounded-2xl p-3 text-xs text-indigo-900 dark:text-indigo-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse inline-block"></span>
+                    <span class="font-bold">Timer Sheet Active</span>
+                    <span class="text-indigo-700 dark:text-indigo-400">&bull; Assigned Timer: <strong>{{ $assignedTimerName }}</strong></span>
+                </div>
+                <span class="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">Click &quot;Set Time&quot; to pick or record speech duration, then click &quot;Save Sheet&quot;.</span>
+            </div>
+            @else
+            <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">View-Only Mode</span>
+                    <span>Only the assigned Timer (<strong>{{ $assignedTimerName }}</strong>), meeting facilitators, or club officers can record speech times.</span>
+                </div>
+            </div>
+            @endif
 
             {{-- Segment 1: Prepared Speakers Timer Sheet --}}
             <div x-show="timerTab === 'speakers'" class="overflow-y-auto flex-1 space-y-4 pr-1">
@@ -1483,7 +1574,7 @@
                                     <span class="font-extrabold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2 py-0.5 rounded-full text-xs">#{{ $sp->slot }}</span>
                                 </td>
                                 <td class="p-3">
-                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $sp->user->name }}</div>
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $sp->user?->name ?? 'Speaker' }}</div>
                                     @if($sp->topic) <div class="text-xs text-slate-500 dark:text-slate-400">&ldquo;{{ $sp->topic }}&rdquo;</div> @endif
                                     @if($sp->speech_type) <div class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold mt-0.5">{{ $sp->speech_type }}</div> @endif
                                 </td>
@@ -1495,21 +1586,24 @@
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5">
                                         <button type="button"
-                                                @click="openTimePicker('{{ $timerKey }}', '{{ addslashes($sp->user->name) }}', '{{ $sp->formattedTiming() }}', 'speakers')"
-                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs cursor-pointer hover:shadow-sm"
-                                                :class="getTimer('{{ $timerKey }}', 'time_taken') 
-                                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60' 
-                                                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'">
+                                                :disabled="!canManageTimer"
+                                                @click="if (canManageTimer) openTimePicker('{{ $timerKey }}', '{{ addslashes($sp->user?->name ?? 'Speaker') }}', '{{ $sp->formattedTiming() }}', 'speakers')"
+                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs"
+                                                :class="!canManageTimer 
+                                                    ? 'bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 cursor-default' 
+                                                    : (getTimer('{{ $timerKey }}', 'time_taken') 
+                                                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 cursor-pointer hover:shadow-sm' 
+                                                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer')">
                                             <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || 'Set Time'"></span>
-                                            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || (canManageTimer ? 'Set Time' : 'No time')"></span>
+                                            <svg x-show="canManageTimer" class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </button>
                                         <button type="button"
-                                                x-show="getTimer('{{ $timerKey }}', 'time_taken')"
+                                                x-show="canManageTimer && getTimer('{{ $timerKey }}', 'time_taken')"
                                                 @click="setTimer('{{ $timerKey }}', 'time_taken', '')"
                                                 class="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                                                 title="Clear time">
@@ -1521,8 +1615,9 @@
                                 </td>
                                 <td class="p-3">
                                     <select :value="getTimer('{{ $timerKey }}', 'status') || 'within_time'"
+                                            :disabled="!canManageTimer"
                                             @change="setTimer('{{ $timerKey }}', 'status', $event.target.value)"
-                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed">
                                         <option value="within_time">🟢 Within Time</option>
                                         <option value="over_time">🔴 Over Time</option>
                                         <option value="under_time">🟡 Under Time</option>
@@ -1566,7 +1661,7 @@
                             @endphp
                             <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                                 <td class="p-3">
-                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $ev->evaluator->name }}</div>
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $ev->evaluator?->name ?? 'Evaluator' }}</div>
                                     <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-900/40">Evaluator</span>
                                 </td>
                                 <td class="p-3">
@@ -1581,21 +1676,24 @@
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5">
                                         <button type="button"
-                                                @click="openTimePicker('{{ $timerKey }}', '{{ addslashes($ev->evaluator->name) }}', '2-3 mins', 'evaluators')"
-                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs cursor-pointer hover:shadow-sm"
-                                                :class="getTimer('{{ $timerKey }}', 'time_taken') 
-                                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60' 
-                                                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'">
+                                                :disabled="!canManageTimer"
+                                                @click="if (canManageTimer) openTimePicker('{{ $timerKey }}', '{{ addslashes($ev->evaluator?->name ?? 'Evaluator') }}', '2-3 mins', 'evaluators')"
+                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs"
+                                                :class="!canManageTimer 
+                                                    ? 'bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 cursor-default' 
+                                                    : (getTimer('{{ $timerKey }}', 'time_taken') 
+                                                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 cursor-pointer hover:shadow-sm' 
+                                                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer')">
                                             <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || 'Set Time'"></span>
-                                            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || (canManageTimer ? 'Set Time' : 'No time')"></span>
+                                            <svg x-show="canManageTimer" class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </button>
                                         <button type="button"
-                                                x-show="getTimer('{{ $timerKey }}', 'time_taken')"
+                                                x-show="canManageTimer && getTimer('{{ $timerKey }}', 'time_taken')"
                                                 @click="setTimer('{{ $timerKey }}', 'time_taken', '')"
                                                 class="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                                                 title="Clear time">
@@ -1607,8 +1705,9 @@
                                 </td>
                                 <td class="p-3">
                                     <select :value="getTimer('{{ $timerKey }}', 'status') || 'within_time'"
+                                            :disabled="!canManageTimer"
                                             @change="setTimer('{{ $timerKey }}', 'status', $event.target.value)"
-                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed">
                                         <option value="within_time">🟢 Within Time</option>
                                         <option value="over_time">🔴 Over Time</option>
                                         <option value="under_time">🟡 Under Time</option>
@@ -1655,7 +1754,7 @@
                                     <span class="font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full text-xs">#{{ $ttm->slot }}</span>
                                 </td>
                                 <td class="p-3">
-                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $ttm->user->name }}</div>
+                                    <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $ttm->user?->name ?? 'Participant' }}</div>
                                     @if($ttm->topic) <div class="text-xs text-slate-500 dark:text-slate-400">&ldquo;{{ $ttm->topic }}&rdquo;</div> @endif
                                 </td>
                                 <td class="p-3 text-center">
@@ -1666,21 +1765,24 @@
                                 <td class="p-3 text-center">
                                     <div class="inline-flex items-center gap-1.5">
                                         <button type="button"
-                                                @click="openTimePicker('{{ $timerKey }}', '{{ addslashes($ttm->user->name) }}', '{{ $ttm->formattedTiming() }}', 'ttm')"
-                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs cursor-pointer hover:shadow-sm"
-                                                :class="getTimer('{{ $timerKey }}', 'time_taken') 
-                                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60' 
-                                                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'">
+                                                :disabled="!canManageTimer"
+                                                @click="if (canManageTimer) openTimePicker('{{ $timerKey }}', '{{ addslashes($ttm->user?->name ?? 'Participant') }}', '{{ $ttm->formattedTiming() }}', 'ttm')"
+                                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border shadow-xs"
+                                                :class="!canManageTimer 
+                                                    ? 'bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 cursor-default' 
+                                                    : (getTimer('{{ $timerKey }}', 'time_taken') 
+                                                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 cursor-pointer hover:shadow-sm' 
+                                                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer')">
                                             <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || 'Set Time'"></span>
-                                            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <span x-text="getTimer('{{ $timerKey }}', 'time_taken') || (canManageTimer ? 'Set Time' : 'No time')"></span>
+                                            <svg x-show="canManageTimer" class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </button>
                                         <button type="button"
-                                                x-show="getTimer('{{ $timerKey }}', 'time_taken')"
+                                                x-show="canManageTimer && getTimer('{{ $timerKey }}', 'time_taken')"
                                                 @click="setTimer('{{ $timerKey }}', 'time_taken', '')"
                                                 class="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                                                 title="Clear time">
@@ -1692,8 +1794,9 @@
                                 </td>
                                 <td class="p-3">
                                     <select :value="getTimer('{{ $timerKey }}', 'status') || 'within_time'"
+                                            :disabled="!canManageTimer"
                                             @change="setTimer('{{ $timerKey }}', 'status', $event.target.value)"
-                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed">
                                         <option value="within_time">🟢 Within Time</option>
                                         <option value="over_time">🔴 Over Time</option>
                                         <option value="under_time">🟡 Under Time</option>
@@ -1721,7 +1824,7 @@
                             class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                         Close
                     </button>
-                    <button @click="saveAllTimerLogs()" :disabled="isSavingTimer" type="button"
+                    <button x-show="canManageTimer" @click="saveAllTimerLogs()" :disabled="isSavingTimer" type="button"
                             class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition-all">
                         <svg x-show="!isSavingTimer" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         <svg x-show="isSavingTimer" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>

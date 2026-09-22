@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\ClubAccessService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Renderless;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -44,6 +45,10 @@ class MeetingShow extends Component
                 $this->speakerDuration = $proj->formattedTiming();
                 $this->speakerSpeechType = $proj->track ?: 'Speech Project';
             }
+        } else {
+            $this->speakerProject = '';
+            $this->speakerDuration = '5-7 mins';
+            $this->speakerSpeechType = 'Speech Project';
         }
     }
 
@@ -65,7 +70,7 @@ class MeetingShow extends Component
     {
         $user = auth()->user();
         // Security check
-        if (! $user->isSuperAdmin() && ! $access->validateUserBelongsToClub($user->id, $meeting->club_id)) {
+        if (! $user || (! $user->isSuperAdmin() && ! $access->validateUserBelongsToClub($user->id, $meeting->club_id))) {
             abort(403, 'This meeting does not belong to your club.');
         }
 
@@ -79,7 +84,7 @@ class MeetingShow extends Component
 
         $meeting = $this->meeting->load([
             'club:id,name,code',
-            'roles.roleType:id,name,sort_order',
+            'roles.roleType:id,name,slug,sort_order',
             'roles.user:id,name,email',
             'speakers.user:id,name,email',
             'speakers.evaluation.evaluator:id,name,email',
@@ -103,15 +108,24 @@ class MeetingShow extends Component
         );
     }
 
+    public function isMeetingLocked(): bool
+    {
+        return in_array($this->meeting->status, ['completed', 'cancelled'], true);
+    }
+
     private function validateCanVolunteer(): void
     {
-        $user = auth()->user();
-        if (! $user->isSuperAdmin() && ! $user->belongsToClub($this->meeting->club_id)) {
-            abort(403, 'You do not belong to this club.');
+        if ($this->isMeetingLocked()) {
+            abort(403, 'This meeting is finalized and signups are closed.');
         }
 
-        if (in_array($this->meeting->status, ['completed', 'cancelled'])) {
-            abort(403, 'Role signups are closed for this meeting.');
+        $user = auth()->user();
+        if (! $user) {
+            abort(401, 'Please sign in to volunteer.');
+        }
+
+        if (! $user->isSuperAdmin() && ! $user->belongsToClub($this->meeting->club_id)) {
+            abort(403, 'You do not belong to this club.');
         }
     }
 
@@ -120,12 +134,14 @@ class MeetingShow extends Component
         $this->validateCanVolunteer();
         $user = auth()->user();
 
+        $roleType = MeetingRoleType::where('is_active', true)->findOrFail($roleTypeId);
+
         // Check if role is already filled
         $existingRole = MeetingRole::where('meeting_id', $this->meeting->id)
-            ->where('meeting_role_type_id', $roleTypeId)
+            ->where('meeting_role_type_id', $roleType->id)
             ->first();
 
-        if ($existingRole && $existingRole->user_id && $existingRole->user_id !== $user->id) {
+        if ($existingRole && $existingRole->user_id && (int) $existingRole->user_id !== (int) $user->id) {
             $this->dispatch('flash', message: 'This role has already been filled by another member.', type: 'error');
             return;
         }
@@ -135,7 +151,7 @@ class MeetingShow extends Component
         } else {
             MeetingRole::create([
                 'meeting_id'           => $this->meeting->id,
-                'meeting_role_type_id' => $roleTypeId,
+                'meeting_role_type_id' => $roleType->id,
                 'user_id'              => $user->id,
             ]);
         }
@@ -145,10 +161,18 @@ class MeetingShow extends Component
 
     public function relinquishRole(int $meetingRoleId): void
     {
-        $role = MeetingRole::findOrFail($meetingRoleId);
+        if ($this->isMeetingLocked()) {
+            abort(403, 'This meeting is finalized and roles cannot be modified.');
+        }
+
+        $role = MeetingRole::where('meeting_id', $this->meeting->id)->findOrFail($meetingRoleId);
         $user = auth()->user();
 
-        if (! $user->isSuperAdmin() && ! $user->can('meetings.update') && $role->user_id !== $user->id) {
+        if (! $user) {
+            abort(401);
+        }
+
+        if (! $user->isSuperAdmin() && ! $user->can('meetings.update') && (int) $role->user_id !== (int) $user->id) {
             abort(403, 'You can only step down from your own role.');
         }
 
@@ -160,6 +184,14 @@ class MeetingShow extends Component
     {
         $this->validateCanVolunteer();
         $user = auth()->user();
+
+        $alreadySpeaker = MeetingSpeaker::where('meeting_id', $this->meeting->id)
+            ->where('user_id', $user->id)
+            ->exists();
+        if ($alreadySpeaker) {
+            $this->dispatch('flash', message: 'You have already registered a speech for this meeting.', type: 'warning');
+            return;
+        }
 
         $this->validate([
             'speakerTopic'      => 'nullable|string|max:255',
@@ -183,20 +215,36 @@ class MeetingShow extends Component
 
         $this->showSpeakerModal = false;
         $this->reset(['speakerTopic', 'speakerProject', 'speakerProjectId']);
+        $this->speakerDuration = '5-7 mins';
+        $this->speakerSpeechType = 'Speech Project';
         $this->dispatch('speaker-signed-up');
         $this->dispatch('flash', message: 'You have signed up as a prepared speaker!', type: 'success');
     }
 
     public function relinquishSpeaker(int $speakerId): void
     {
-        $speaker = MeetingSpeaker::findOrFail($speakerId);
+        if ($this->isMeetingLocked()) {
+            abort(403, 'This meeting is finalized and speaker slots cannot be modified.');
+        }
+
+        $speaker = MeetingSpeaker::where('meeting_id', $this->meeting->id)->findOrFail($speakerId);
         $user = auth()->user();
 
-        if (! $user->isSuperAdmin() && ! $user->can('meetings.update') && $speaker->user_id !== $user->id) {
+        if (! $user) {
+            abort(401);
+        }
+
+        if (! $user->isSuperAdmin() && ! $user->can('meetings.update') && (int) $speaker->user_id !== (int) $user->id) {
             abort(403, 'You can only remove your own speaker slot.');
         }
 
+        // Clean up linked evaluation and timer records
         $speaker->evaluation()?->delete();
+        MeetingTimerLog::where('meeting_id', $this->meeting->id)
+            ->where('speaker_type', 'prepared_speaker')
+            ->where('reference_id', $speaker->id)
+            ->delete();
+
         $speaker->delete();
         $this->dispatch('flash', message: 'Speaker slot removed.', type: 'info');
     }
@@ -205,6 +253,18 @@ class MeetingShow extends Component
     {
         $this->validateCanVolunteer();
         $user = auth()->user();
+
+        $alreadyTtm = MeetingTtmSpeaker::where('meeting_id', $this->meeting->id)
+            ->where('user_id', $user->id)
+            ->exists();
+        if ($alreadyTtm) {
+            $this->dispatch('flash', message: 'You have already signed up for Table Topics in this meeting.', type: 'warning');
+            return;
+        }
+
+        $this->validate([
+            'ttmTopic' => 'nullable|string|max:255',
+        ]);
 
         $maxSlot = (int) MeetingTtmSpeaker::where('meeting_id', $this->meeting->id)->max('slot');
 
@@ -223,23 +283,170 @@ class MeetingShow extends Component
 
     public function relinquishTtm(int $ttmId): void
     {
-        $ttm = MeetingTtmSpeaker::findOrFail($ttmId);
+        if ($this->isMeetingLocked()) {
+            abort(403, 'This meeting is finalized and Table Topics cannot be modified.');
+        }
+
+        $ttm = MeetingTtmSpeaker::where('meeting_id', $this->meeting->id)->findOrFail($ttmId);
         $user = auth()->user();
 
-        if (! $user->isSuperAdmin() && ! $user->can('meetings.update') && $ttm->user_id !== $user->id) {
+        if (! $user) {
+            abort(401);
+        }
+
+        if (! $user->isSuperAdmin() && ! $user->can('meetings.update') && (int) $ttm->user_id !== (int) $user->id) {
             abort(403, 'You can only remove your own Table Topics slot.');
         }
+
+        MeetingTimerLog::where('meeting_id', $this->meeting->id)
+            ->where('speaker_type', 'ttm_speaker')
+            ->where('reference_id', $ttm->id)
+            ->delete();
 
         $ttm->delete();
         $this->dispatch('flash', message: 'Table Topics slot removed.', type: 'info');
     }
 
     // =========================================================================
+    // Authorization Helpers for Meeting Tools
+    // =========================================================================
+
+    public function canManageMeeting(): bool
+    {
+        if ($this->isMeetingLocked()) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->isSuperAdmin() || $user->can('meetings.update') || $user->hasRole('admin');
+    }
+
+    public function canManageTimer(): bool
+    {
+        if ($this->isMeetingLocked()) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->canManageMeeting()) {
+            return true;
+        }
+
+        $this->meeting->loadMissing('roles.roleType');
+
+        $isFacilitator = $this->meeting->roles->contains(function ($role) use ($user) {
+            $slug = \Illuminate\Support\Str::slug($role->roleType?->slug ?: ($role->roleType?->name ?? ''));
+            return (int) $role->user_id === (int) $user->id
+                && in_array($slug, ['tmod', 'ge', 'general-evaluator', 'toastmaster'], true);
+        });
+        if ($isFacilitator) {
+            return true;
+        }
+
+        $timerRole = $this->meeting->roles->first(function ($r) {
+            $slug = \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? ''));
+            return $slug === 'timer';
+        });
+        if ($timerRole && (int) $timerRole->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function canManageAhCounter(): bool
+    {
+        if ($this->isMeetingLocked()) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->canManageMeeting()) {
+            return true;
+        }
+
+        $this->meeting->loadMissing('roles.roleType');
+
+        $isFacilitator = $this->meeting->roles->contains(function ($role) use ($user) {
+            $slug = \Illuminate\Support\Str::slug($role->roleType?->slug ?: ($role->roleType?->name ?? ''));
+            return (int) $role->user_id === (int) $user->id
+                && in_array($slug, ['tmod', 'ge', 'general-evaluator', 'toastmaster'], true);
+        });
+        if ($isFacilitator) {
+            return true;
+        }
+
+        $ahRole = $this->meeting->roles->first(function ($r) {
+            $slug = \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? ''));
+            return in_array($slug, ['ah-counter', 'ah-count'], true);
+        });
+        if ($ahRole && (int) $ahRole->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function canManageGrammarian(): bool
+    {
+        if ($this->isMeetingLocked()) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->canManageMeeting()) {
+            return true;
+        }
+
+        $this->meeting->loadMissing('roles.roleType');
+
+        $isFacilitator = $this->meeting->roles->contains(function ($role) use ($user) {
+            $slug = \Illuminate\Support\Str::slug($role->roleType?->slug ?: ($role->roleType?->name ?? ''));
+            return (int) $role->user_id === (int) $user->id
+                && in_array($slug, ['tmod', 'ge', 'general-evaluator', 'toastmaster'], true);
+        });
+        if ($isFacilitator) {
+            return true;
+        }
+
+        $grammarianRole = $this->meeting->roles->first(function ($r) {
+            $slug = \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? ''));
+            return $slug === 'grammarian';
+        });
+        if ($grammarianRole && (int) $grammarianRole->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // =========================================================================
     // Live Ah-Counter & Grammarian Facilitator Tools
     // =========================================================================
 
+    #[Renderless]
     public function incrementFiller(int $userId, string $fillerType): void
     {
+        if (! $this->canManageAhCounter()) {
+            abort(403, 'You are not authorized to modify Ah-Counter counts.');
+        }
+
         $allowed = ['ah_count', 'um_count', 'er_count', 'like_count', 'you_know_count', 'so_count', 'repeats_count', 'other_count'];
         if (! in_array($fillerType, $allowed, true)) {
             return;
@@ -252,8 +459,13 @@ class MeetingShow extends Component
         $log->increment($fillerType);
     }
 
+    #[Renderless]
     public function decrementFiller(int $userId, string $fillerType): void
     {
+        if (! $this->canManageAhCounter()) {
+            abort(403, 'You are not authorized to modify Ah-Counter counts.');
+        }
+
         $allowed = ['ah_count', 'um_count', 'er_count', 'like_count', 'you_know_count', 'so_count', 'repeats_count', 'other_count'];
         if (! in_array($fillerType, $allowed, true)) {
             return;
@@ -265,8 +477,13 @@ class MeetingShow extends Component
         }
     }
 
+    #[Renderless]
     public function incrementWordOfDay(int $userId): void
     {
+        if (! $this->canManageGrammarian()) {
+            abort(403, 'You are not authorized to modify Grammarian counts.');
+        }
+
         $log = MeetingGrammarianLog::firstOrCreate(
             ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
             ['word_of_day_count' => 0]
@@ -274,8 +491,13 @@ class MeetingShow extends Component
         $log->increment('word_of_day_count');
     }
 
+    #[Renderless]
     public function decrementWordOfDay(int $userId): void
     {
+        if (! $this->canManageGrammarian()) {
+            abort(403, 'You are not authorized to modify Grammarian counts.');
+        }
+
         $log = MeetingGrammarianLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
         if ($log && $log->word_of_day_count > 0) {
             $log->decrement('word_of_day_count');
@@ -291,8 +513,13 @@ class MeetingShow extends Component
         $this->grammarNotes = $log?->notes ?? '';
     }
 
+    #[Renderless]
     public function saveGrammarNotes(): void
     {
+        if (! $this->canManageGrammarian()) {
+            abort(403, 'You are not authorized to edit Grammarian notes.');
+        }
+
         if (! $this->selectedGrammarUserId) {
             return;
         }
@@ -312,31 +539,62 @@ class MeetingShow extends Component
         $this->dispatch('flash', message: 'Grammarian notes saved.', type: 'success');
     }
 
+    #[Renderless]
     public function saveAhCounterCounts(array $ahCounts): void
     {
+        if (! $this->canManageAhCounter()) {
+            abort(403, 'You are not authorized to save Ah-Counter counts.');
+        }
+
         $this->saveAllCounts($ahCounts, null, 'ah_counter');
     }
 
+    #[Renderless]
     public function saveGrammarianCounts(array $grammarCounts): void
     {
+        if (! $this->canManageGrammarian()) {
+            abort(403, 'You are not authorized to save Grammarian counts.');
+        }
+
         $this->saveAllCounts(null, $grammarCounts, 'grammarian');
     }
 
+    #[Renderless]
     public function saveAllCounts(?array $ahCounts = null, ?array $grammarCounts = null, ?string $role = null): void
     {
+        if ($this->isMeetingLocked()) {
+            abort(403, 'This meeting is finalized and facilitator counts cannot be modified.');
+        }
+
         $shouldProcessAh = ($role === 'ah_counter') || ($role === null && $ahCounts !== null && ! empty($ahCounts));
         $shouldProcessGrammar = ($role === 'grammarian') || ($role === null && $grammarCounts !== null && ! empty($grammarCounts));
+
+        if ($shouldProcessAh && ! $this->canManageAhCounter()) {
+            abort(403, 'You are not authorized to save Ah-Counter counts.');
+        }
+
+        if ($shouldProcessGrammar && ! $this->canManageGrammarian()) {
+            abort(403, 'You are not authorized to save Grammarian counts.');
+        }
 
         if ($shouldProcessAh && ! empty($ahCounts)) {
             $allowed = ['ah_count', 'um_count', 'er_count', 'like_count', 'you_know_count', 'so_count', 'repeats_count', 'other_count'];
 
+            $candidateUserIds = array_filter(array_map('intval', array_keys($ahCounts)), fn ($id) => $id > 0);
+            $validUserIds = ! empty($candidateUserIds)
+                ? User::whereIn('id', $candidateUserIds)->pluck('id')->flip()->toArray()
+                : [];
+
+            $existingLogs = ! empty($validUserIds)
+                ? MeetingAhCounterLog::where('meeting_id', $this->meeting->id)
+                    ->whereIn('user_id', array_keys($validUserIds))
+                    ->get()
+                    ->keyBy('user_id')
+                : collect();
+
             foreach ($ahCounts as $userId => $counts) {
                 $userId = (int) $userId;
-                if ($userId <= 0 || ! is_array($counts)) {
-                    continue;
-                }
-
-                if (! User::where('id', $userId)->exists()) {
+                if ($userId <= 0 || ! is_array($counts) || ! isset($validUserIds[$userId])) {
                     continue;
                 }
 
@@ -352,26 +610,40 @@ class MeetingShow extends Component
                     }
                 }
 
-                $existing = MeetingAhCounterLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
-                if (! empty($data) && ($hasNonZero || ($role === 'ah_counter' && $existing))) {
-                    MeetingAhCounterLog::updateOrCreate(
-                        ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
-                        $data
-                    );
+                $existing = $existingLogs->get($userId);
+                if (! empty($data) && ($hasNonZero || $existing)) {
+                    if ($existing) {
+                        $existing->update($data);
+                    } else {
+                        MeetingAhCounterLog::create(array_merge(
+                            ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
+                            $data
+                        ));
+                    }
                 }
             }
         }
 
         if ($shouldProcessGrammar && ! empty($grammarCounts)) {
+            $candidateUserIds = array_filter(array_map('intval', array_keys($grammarCounts)), fn ($id) => $id > 0);
+            $validUserIds = ! empty($candidateUserIds)
+                ? User::whereIn('id', $candidateUserIds)->pluck('id')->flip()->toArray()
+                : [];
+
+            $existingLogs = ! empty($validUserIds)
+                ? MeetingGrammarianLog::where('meeting_id', $this->meeting->id)
+                    ->whereIn('user_id', array_keys($validUserIds))
+                    ->get()
+                    ->keyBy('user_id')
+                : collect();
+
             foreach ($grammarCounts as $userId => $counts) {
                 $userId = (int) $userId;
-                if ($userId <= 0) {
+                if ($userId <= 0 || ! isset($validUserIds[$userId])) {
                     continue;
                 }
 
-                if (! User::where('id', $userId)->exists()) {
-                    continue;
-                }
+                $existing = $existingLogs->get($userId);
 
                 if (is_array($counts)) {
                     $wodCount = max(0, (int) ($counts['word_of_day_count'] ?? 0));
@@ -380,27 +652,35 @@ class MeetingShow extends Component
                     $notes = isset($counts['notes']) && trim((string)$counts['notes']) !== '' ? trim((string)$counts['notes']) : null;
 
                     $hasData = ($wodCount > 0 || $goodPhrases !== null || $awkwardPhrases !== null || $notes !== null);
-                    $existing = MeetingGrammarianLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
 
-                    if ($hasData || ($role === 'grammarian' && $existing)) {
-                        MeetingGrammarianLog::updateOrCreate(
-                            ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
-                            [
-                                'word_of_day_count' => $wodCount,
-                                'good_phrases'      => $goodPhrases,
-                                'awkward_phrases'   => $awkwardPhrases,
-                                'notes'             => $notes,
-                            ]
-                        );
+                    if ($hasData || $existing) {
+                        $updateData = [
+                            'word_of_day_count' => $wodCount,
+                            'good_phrases'      => $goodPhrases,
+                            'awkward_phrases'   => $awkwardPhrases,
+                            'notes'             => $notes,
+                        ];
+                        if ($existing) {
+                            $existing->update($updateData);
+                        } else {
+                            MeetingGrammarianLog::create(array_merge(
+                                ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
+                                $updateData
+                            ));
+                        }
                     }
                 } else {
                     $wodCount = max(0, (int) $counts);
-                    $existing = MeetingGrammarianLog::where('meeting_id', $this->meeting->id)->where('user_id', $userId)->first();
-                    if ($wodCount > 0 || ($role === 'grammarian' && $existing)) {
-                        MeetingGrammarianLog::updateOrCreate(
-                            ['meeting_id' => $this->meeting->id, 'user_id' => $userId],
-                            ['word_of_day_count' => $wodCount]
-                        );
+                    if ($wodCount > 0 || $existing) {
+                        if ($existing) {
+                            $existing->update(['word_of_day_count' => $wodCount]);
+                        } else {
+                            MeetingGrammarianLog::create([
+                                'meeting_id'        => $this->meeting->id,
+                                'user_id'           => $userId,
+                                'word_of_day_count' => $wodCount,
+                            ]);
+                        }
                     }
                 }
             }
@@ -415,8 +695,13 @@ class MeetingShow extends Component
         $this->dispatch('flash', message: $msg, type: 'success');
     }
 
+    #[Renderless]
     public function syncAhCounts(int $userId, array $counts): void
     {
+        if (! $this->canManageAhCounter()) {
+            return;
+        }
+
         if ($userId <= 0 || ! User::where('id', $userId)->exists()) {
             return;
         }
@@ -437,8 +722,13 @@ class MeetingShow extends Component
         }
     }
 
+    #[Renderless]
     public function syncGrammarCount(int $userId, int $count): void
     {
+        if (! $this->canManageGrammarian()) {
+            return;
+        }
+
         if ($userId <= 0 || ! User::where('id', $userId)->exists()) {
             return;
         }
@@ -451,13 +741,21 @@ class MeetingShow extends Component
 
     public function saveEvaluationNotes(int $evaluationId, string $notes): void
     {
+        if ($this->isMeetingLocked()) {
+            abort(403, 'This meeting is finalized and evaluation notes cannot be modified.');
+        }
+
         $evaluation = MeetingEvaluation::where('meeting_id', $this->meeting->id)
             ->where('id', $evaluationId)
             ->firstOrFail();
 
         $user = auth()->user();
+        if (! $user) {
+            abort(401);
+        }
+
         $isEvaluator = (int) $evaluation->evaluator_user_id === (int) $user->id;
-        $canManageMeeting = $user->isSuperAdmin() || $user->can('meetings.update') || $user->hasRole('admin');
+        $canManageMeeting = $this->canManageMeeting();
 
         if (! $isEvaluator && ! $canManageMeeting) {
             abort(403, 'You are not authorized to edit this evaluation.');
@@ -470,43 +768,65 @@ class MeetingShow extends Component
         $this->dispatch('flash', message: 'Evaluation feedback saved successfully!', type: 'success');
     }
 
+    #[Renderless]
     public function saveTimerLogs(array $timerData = []): void
     {
+        if ($this->isMeetingLocked() || ! $this->canManageTimer()) {
+            abort(403, 'This meeting is finalized or you are not authorized to edit the Timer sheet.');
+        }
+
+        $meetingId = $this->meeting->id;
+        $existingTimerLogs = MeetingTimerLog::where('meeting_id', $meetingId)->get();
+
+        $candidateUserIds = array_filter(array_map('intval', array_column($timerData, 'user_id')), fn ($id) => $id > 0);
+        $validUserIds = ! empty($candidateUserIds)
+            ? User::whereIn('id', $candidateUserIds)->pluck('id')->flip()->toArray()
+            : [];
+
         foreach ($timerData as $item) {
             if (empty($item['speaker_type']) || empty($item['user_id'])) {
                 continue;
             }
 
-            $meetingId = $this->meeting->id;
+            $userId = (int) $item['user_id'];
+            if (! isset($validUserIds[$userId])) {
+                continue;
+            }
+
             $speakerType = $item['speaker_type'];
             $refId = ! empty($item['reference_id']) ? (int) $item['reference_id'] : null;
-            $userId = (int) $item['user_id'];
             $allotted = $item['allotted_time'] ?? null;
             $timeTaken = isset($item['time_taken']) && trim((string)$item['time_taken']) !== '' ? trim((string)$item['time_taken']) : null;
             $status = in_array($item['status'] ?? '', ['within_time', 'over_time', 'under_time', 'disqualified'], true)
                 ? $item['status']
                 : 'within_time';
 
-            $existing = MeetingTimerLog::where('meeting_id', $meetingId)
-                ->where('speaker_type', $speakerType)
-                ->when($refId, fn ($q) => $q->where('reference_id', $refId), fn ($q) => $q->where('user_id', $userId))
-                ->first();
+            $existing = $existingTimerLogs->first(function ($l) use ($speakerType, $refId, $userId) {
+                if ($l->speaker_type !== $speakerType) {
+                    return false;
+                }
+                return $refId ? (int) $l->reference_id === (int) $refId : (int) $l->user_id === (int) $userId;
+            });
 
             if ($timeTaken !== null || $existing) {
-                MeetingTimerLog::updateOrCreate(
-                    [
+                $data = [
+                    'user_id'       => $userId,
+                    'allotted_time' => $allotted,
+                    'time_taken'    => $timeTaken,
+                    'status'        => $status,
+                    'notes'         => ! empty($item['notes']) ? trim($item['notes']) : null,
+                ];
+
+                if ($existing) {
+                    $existing->update($data);
+                } else {
+                    $newLog = MeetingTimerLog::create(array_merge([
                         'meeting_id'   => $meetingId,
                         'speaker_type' => $speakerType,
                         'reference_id' => $refId,
-                    ],
-                    [
-                        'user_id'       => $userId,
-                        'allotted_time' => $allotted,
-                        'time_taken'    => $timeTaken,
-                        'status'        => $status,
-                        'notes'         => ! empty($item['notes']) ? trim($item['notes']) : null,
-                    ]
-                );
+                    ], $data));
+                    $existingTimerLogs->push($newLog);
+                }
             }
         }
 
@@ -519,7 +839,7 @@ class MeetingShow extends Component
         $meeting = $this->meeting->load([
             'club:id,name,code',
             'creator:id,name',
-            'roles.roleType:id,name,sort_order',
+            'roles.roleType:id,name,slug,sort_order',
             'roles.user:id,name,email',
             'speakers.user:id,name,email',
             'speakers.projectModel:id,name,track,level,min_minutes,max_minutes',
@@ -589,7 +909,7 @@ class MeetingShow extends Component
                     'roles'    => [],
                     'category' => 'Role Player',
                 ]);
-                $entry['roles'][] = $role->roleType->name;
+                $entry['roles'][] = $role->roleType?->name ?? 'Role Player';
                 $activeParticipants->put($role->user_id, $entry);
             }
         }
@@ -640,13 +960,37 @@ class MeetingShow extends Component
                 $activeParticipants->put($log->user_id, [
                     'id'       => $log->user_id,
                     'name'     => $log->user->name,
-                    'roles'    => ['Speaker'],
+                    'roles'    => ['Participant'],
+                    'category' => 'Participant',
+                ]);
+            }
+        }
+
+        foreach ($meeting->grammarianLogs as $log) {
+            if ($log->user && ! $activeParticipants->has($log->user_id)) {
+                $activeParticipants->put($log->user_id, [
+                    'id'       => $log->user_id,
+                    'name'     => $log->user->name,
+                    'roles'    => ['Participant'],
                     'category' => 'Participant',
                 ]);
             }
         }
 
         $meetingParticipants = $activeParticipants->values();
+
+        $canManageTimer = $this->canManageTimer();
+        $canManageAhCounter = $this->canManageAhCounter();
+        $canManageGrammarian = $this->canManageGrammarian();
+
+        $assignedTimer = $meeting->roles->first(fn ($r) => \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? '')) === 'timer');
+        $assignedAhCounter = $meeting->roles->first(fn ($r) => in_array(\Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? '')), ['ah-counter', 'ah-count'], true));
+        $assignedGrammarian = $meeting->roles->first(fn ($r) => \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? '')) === 'grammarian');
+
+        $assignedTimerName = $assignedTimer?->user?->name ?? 'Unassigned';
+        $assignedAhCounterName = $assignedAhCounter?->user?->name ?? 'Unassigned';
+        $assignedGrammarianName = $assignedGrammarian?->user?->name ?? 'Unassigned';
+        $isMeetingLocked = $this->isMeetingLocked();
 
         return view('livewire.meetings.meeting-show', compact(
             'meeting',
@@ -657,7 +1001,14 @@ class MeetingShow extends Component
             'projects',
             'initialAhLogs',
             'initialGrammarLogs',
-            'initialTimerLogs'
-        ))->title('Meeting #' . $meeting->meeting_number . ' — ' . $meeting->club->name);
+            'initialTimerLogs',
+            'canManageTimer',
+            'canManageAhCounter',
+            'canManageGrammarian',
+            'assignedTimerName',
+            'assignedAhCounterName',
+            'assignedGrammarianName',
+            'isMeetingLocked'
+        ))->title('Meeting #' . $meeting->meeting_number . ' — ' . ($meeting->club?->name ?? 'Speech Club'));
     }
 }

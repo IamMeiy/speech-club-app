@@ -43,7 +43,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Meeting Agenda #{{ $meeting->meeting_number }} — {{ $meeting->club->name }}</title>
+    <title>Meeting Agenda #{{ $meeting->meeting_number }} — {{ $meeting->club?->name ?? 'Speech Club' }}</title>
     <style>
         @page {
             margin: 26px 28px 30px 28px;
@@ -530,7 +530,7 @@
                     <div style="font-weight: 600; color: #0f172a;">{{ $speaker->user?->name ?? 'TBD' }}</div>
                     @if($speaker->evaluation?->evaluator)
                         <div style="margin-top: 1px;">
-                            <span class="eval-badge">Evaluator: {{ $speaker->evaluation->evaluator->name }}</span>
+                            <span class="eval-badge">Evaluator: {{ $speaker->evaluation->evaluator?->name ?? 'Evaluator' }}</span>
                         </div>
                     @endif
                 </td>

@@ -53,7 +53,7 @@ class Meeting extends Model
      */
     public function roles(): HasMany
     {
-        return $this->hasMany(MeetingRole::class)->with(['roleType:id,name,sort_order', 'user:id,name,email']);
+        return $this->hasMany(MeetingRole::class)->with(['roleType:id,name,slug,sort_order', 'user:id,name,email']);
     }
 
     /**
