@@ -876,9 +876,14 @@ class NewModulesTest extends TestCase
             ->call('incrementFiller', $member->id, 'ah_count')
             ->assertStatus(403);
 
-        // 4. Cannot save evaluation notes
+        // 4. Cannot save evaluation notes or listening master report
         Livewire::test(MeetingShow::class, ['meeting' => $meeting])
             ->call('saveEvaluationNotes', $eval->id, 'Hacked notes')
+            ->assertStatus(403);
+
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->set('listeningMasterReport', '<p>Hacked Listening Quiz</p>')
+            ->call('saveListeningMasterReport')
             ->assertStatus(403);
 
         // 5. Cannot volunteer for roles, speakers, or TTM
@@ -906,6 +911,67 @@ class NewModulesTest extends TestCase
 
         Livewire::test(MeetingShow::class, ['meeting' => $meeting])
             ->call('relinquishTtm', $ttm->id)
+            ->assertStatus(403);
+    }
+
+    public function test_assigned_listening_master_and_admin_can_save_report(): void
+    {
+        $club = Club::first();
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+        $admin->clubs()->attach($club->id);
+
+        $listeningUser = User::factory()->create();
+        $listeningUser->assignRole('Member');
+        $listeningUser->clubs()->attach($club->id);
+
+        $otherUser = User::factory()->create();
+        $otherUser->assignRole('Member');
+        $otherUser->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 215,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'in_progress',
+        ]);
+
+        $listeningRoleType = MeetingRoleType::where('slug', 'listening-master')->first();
+        MeetingRole::create([
+            'meeting_id' => $meeting->id,
+            'meeting_role_type_id' => $listeningRoleType->id,
+            'user_id' => $listeningUser->id,
+        ]);
+
+        // 1. Assigned Listening Master can save report
+        $this->actingAs($listeningUser);
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->set('listeningMasterReport', '<p><strong>Quiz:</strong> What was the main takeaway?</p>')
+            ->call('saveListeningMasterReport')
+            ->assertDispatched('listening-master-report-saved');
+
+        $this->assertDatabaseHas('meetings', [
+            'id' => $meeting->id,
+            'listening_master_report' => '<p><strong>Quiz:</strong> What was the main takeaway?</p>',
+        ]);
+
+        // 2. Admin can also save/update report
+        $this->actingAs($admin);
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->set('listeningMasterReport', '<p>Updated by Admin</p>')
+            ->call('saveListeningMasterReport')
+            ->assertDispatched('listening-master-report-saved');
+
+        $this->assertDatabaseHas('meetings', [
+            'id' => $meeting->id,
+            'listening_master_report' => '<p>Updated by Admin</p>',
+        ]);
+
+        // 3. Unauthorized member cannot save report
+        $this->actingAs($otherUser);
+        Livewire::test(MeetingShow::class, ['meeting' => $meeting])
+            ->set('listeningMasterReport', '<p>Hacked by unauthorized user</p>')
+            ->call('saveListeningMasterReport')
             ->assertStatus(403);
     }
 }

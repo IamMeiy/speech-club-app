@@ -327,6 +327,24 @@
     </div>
     @endif
 
+    {{-- Listening Master Report --}}
+    @if($meeting->listening_master_report)
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
+        <div class="flex items-center gap-2.5 mb-4">
+            <span class="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+            </span>
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">Listening Master Report</h2>
+                <p class="text-xs text-slate-400 font-medium">Active listening questions, trivia & observations</p>
+            </div>
+        </div>
+        <div class="rich-text-content text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+            {!! $meeting->listening_master_report !!}
+        </div>
+    </div>
+    @endif
+
     @if($meeting->notes)
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
         <h2 class="text-base font-bold text-slate-900 dark:text-white mb-3">Meeting Notes & Takeaways</h2>

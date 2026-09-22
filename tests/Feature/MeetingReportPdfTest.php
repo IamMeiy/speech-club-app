@@ -199,4 +199,34 @@ class MeetingReportPdfTest extends TestCase
             ->call('downloadPdf')
             ->assertFileDownloaded("Meeting-103-Report-" . now()->toDateString() . ".pdf");
     }
+
+    public function test_meeting_report_page_and_pdf_render_listening_master_report(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\ClubSeeder::class);
+        $this->seed(\Database\Seeders\MeetingRoleTypeSeeder::class);
+
+        $club = Club::first();
+        $user = User::factory()->create();
+        $user->assignRole('Member');
+        $user->clubs()->attach($club->id);
+
+        $meeting = Meeting::create([
+            'club_id' => $club->id,
+            'meeting_number' => 104,
+            'meeting_date' => now()->toDateString(),
+            'status' => 'completed',
+            'listening_master_report' => '<p><strong>Quiz Question 1:</strong> Who won the table topics vote?</p>',
+        ]);
+
+        $this->actingAs($user);
+
+        // Verify Livewire Report view renders Listening Master Report
+        Livewire::test(\App\Livewire\Meetings\MeetingReport::class, ['meeting' => $meeting])
+            ->assertStatus(200)
+            ->assertSee('Listening Master Report')
+            ->assertSee('Who won the table topics vote?')
+            ->call('downloadPdf')
+            ->assertFileDownloaded("Meeting-104-Report-" . now()->toDateString() . ".pdf");
+    }
 }

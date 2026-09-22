@@ -746,6 +746,14 @@
     </div>
     @endif
 
+    {{-- Listening Master Report --}}
+    @if($meeting->listening_master_report)
+    <div class="section-container">
+        <div class="section-heading">Listening Master Report & Quiz</div>
+        <div class="notes-box">{!! $meeting->listening_master_report !!}</div>
+    </div>
+    @endif
+
     {{-- Meeting Notes & Takeaways --}}
     @if($meeting->notes)
     <div class="section-container">

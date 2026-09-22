@@ -67,6 +67,9 @@ class MeetingShow extends Component
     public string $grammarAwkwardPhrases = '';
     public string $grammarNotes = '';
 
+    // Listening Master Report state
+    public ?string $listeningMasterReport = null;
+
     public function mount(Meeting $meeting, ClubAccessService $access): void
     {
         $user = auth()->user();
@@ -76,6 +79,7 @@ class MeetingShow extends Component
         }
 
         $this->meeting = $meeting;
+        $this->listeningMasterReport = $meeting->listening_master_report;
     }
 
     public function downloadAgenda(string $theme = 'indigo')
@@ -446,6 +450,43 @@ class MeetingShow extends Component
             return $slug === 'grammarian';
         });
         if ($grammarianRole && (int) $grammarianRole->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function canManageListeningMaster(): bool
+    {
+        if ($this->isMeetingLocked()) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->canManageMeeting()) {
+            return true;
+        }
+
+        $this->meeting->loadMissing('roles.roleType');
+
+        $isFacilitator = $this->meeting->roles->contains(function ($role) use ($user) {
+            $slug = \Illuminate\Support\Str::slug($role->roleType?->slug ?: ($role->roleType?->name ?? ''));
+            return (int) $role->user_id === (int) $user->id
+                && in_array($slug, ['tmod', 'ge', 'general-evaluator', 'toastmaster'], true);
+        });
+        if ($isFacilitator) {
+            return true;
+        }
+
+        $listeningRole = $this->meeting->roles->first(function ($r) {
+            $slug = \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? ''));
+            return in_array($slug, ['listening-master', 'hark-master', 'listening-post'], true);
+        });
+        if ($listeningRole && (int) $listeningRole->user_id === (int) $user->id) {
             return true;
         }
 
@@ -850,6 +891,31 @@ class MeetingShow extends Component
         $this->dispatch('flash', message: 'Timer sheet saved successfully!', type: 'success');
     }
 
+    public function saveListeningMasterReport(): void
+    {
+        if ($this->isMeetingLocked()) {
+            abort(403, 'This meeting is finalized and the Listening Master report cannot be modified.');
+        }
+
+        if (! $this->canManageListeningMaster()) {
+            abort(403, 'You are not authorized to edit the Listening Master report.');
+        }
+
+        $reportText = trim((string) $this->listeningMasterReport);
+        $cleanText = strip_tags($reportText);
+        $finalReport = ($cleanText !== '' || str_contains($reportText, '<img') || str_contains($reportText, '<hr'))
+            ? $reportText
+            : null;
+
+        $this->meeting->update([
+            'listening_master_report' => $finalReport,
+        ]);
+
+        $this->listeningMasterReport = $finalReport;
+        $this->dispatch('listening-master-report-saved');
+        $this->dispatch('flash', message: 'Listening Master report saved successfully!', type: 'success');
+    }
+
     public function render()
     {
         $meeting = $this->meeting->load([
@@ -998,14 +1064,17 @@ class MeetingShow extends Component
         $canManageTimer = $this->canManageTimer();
         $canManageAhCounter = $this->canManageAhCounter();
         $canManageGrammarian = $this->canManageGrammarian();
+        $canManageListeningMaster = $this->canManageListeningMaster();
 
         $assignedTimer = $meeting->roles->first(fn ($r) => \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? '')) === 'timer');
         $assignedAhCounter = $meeting->roles->first(fn ($r) => in_array(\Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? '')), ['ah-counter', 'ah-count'], true));
         $assignedGrammarian = $meeting->roles->first(fn ($r) => \Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? '')) === 'grammarian');
+        $assignedListeningMaster = $meeting->roles->first(fn ($r) => in_array(\Illuminate\Support\Str::slug($r->roleType?->slug ?: ($r->roleType?->name ?? '')), ['listening-master', 'hark-master', 'listening-post'], true));
 
         $assignedTimerName = $assignedTimer?->user?->name ?? 'Unassigned';
         $assignedAhCounterName = $assignedAhCounter?->user?->name ?? 'Unassigned';
         $assignedGrammarianName = $assignedGrammarian?->user?->name ?? 'Unassigned';
+        $assignedListeningMasterName = $assignedListeningMaster?->user?->name ?? 'Unassigned';
         $isMeetingLocked = $this->isMeetingLocked();
 
         return view('livewire.meetings.meeting-show', compact(
@@ -1021,9 +1090,11 @@ class MeetingShow extends Component
             'canManageTimer',
             'canManageAhCounter',
             'canManageGrammarian',
+            'canManageListeningMaster',
             'assignedTimerName',
             'assignedAhCounterName',
             'assignedGrammarianName',
+            'assignedListeningMasterName',
             'isMeetingLocked'
         ))->title('Meeting #' . $meeting->meeting_number . ' — ' . ($meeting->club?->name ?? 'Speech Club'));
     }

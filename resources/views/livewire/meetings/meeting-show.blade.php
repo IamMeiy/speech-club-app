@@ -12,6 +12,8 @@
          canManageTimer: {{ $canManageTimer ? 'true' : 'false' }},
          canManageAhCounter: {{ $canManageAhCounter ? 'true' : 'false' }},
          canManageGrammarian: {{ $canManageGrammarian ? 'true' : 'false' }},
+         canManageListeningMaster: {{ $canManageListeningMaster ? 'true' : 'false' }},
+         showListeningMasterModal: false,
 
          getAh(userId, type) {
              if (!this.ahCounts[userId]) {
@@ -305,7 +307,7 @@
       }"
       @speaker-signed-up.window="showSpeakerModal = false"
       @ttm-signed-up.window="showTtmModal = false"
-      @keydown.escape.window="if (showTimerSheet) { showTimerSheet = false; } else if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
+      @keydown.escape.window="if (showListeningMasterModal) { showListeningMasterModal = false; } else if (showTimerSheet) { showTimerSheet = false; } else if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
 
     {{-- Header --}}
     <div class="bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-5">
@@ -378,12 +380,21 @@
                 </button>
 
                 {{-- Standalone Timer Sheet Button --}}
-                <button @click="showLiveTools = false; showTimerSheet = true" type="button"
+                <button @click="showLiveTools = false; showListeningMasterModal = false; showTimerSheet = true" type="button"
                         class="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
                     <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Timer Sheet</span>
+                </button>
+
+                {{-- Listening Master Report Button --}}
+                <button @click="showLiveTools = false; showTimerSheet = false; showListeningMasterModal = true" type="button"
+                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-300/60 dark:border-purple-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                    <span>Listening Master</span>
                 </button>
             </div>
 
@@ -2067,6 +2078,127 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Listening Master Report Modal --}}
+    {{-- ================================================================ --}}
+    <div x-show="showListeningMasterModal"
+         x-cloak
+         @click.self="showListeningMasterModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 flex flex-col max-h-[90vh]">
+
+            {{-- Modal Header --}}
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="p-2.5 rounded-2xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                    </span>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Listening Master Report</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Assigned Listening Master: <strong class="text-slate-700 dark:text-slate-200">{{ $assignedListeningMasterName }}</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    @if($canManageListeningMaster)
+                    <button wire:click="saveListeningMasterReport" wire:loading.attr="disabled" type="button"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/20 transition-all">
+                        <svg wire:loading.remove wire:target="saveListeningMasterReport" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <svg wire:loading wire:target="saveListeningMasterReport" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <span wire:loading.remove wire:target="saveListeningMasterReport">Save Report</span>
+                        <span wire:loading wire:target="saveListeningMasterReport">Saving…</span>
+                    </button>
+                    @endif
+
+                    <button @click="showListeningMasterModal = false" type="button" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Role Context Banner --}}
+            @if($isMeetingLocked)
+            <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2 flex-shrink-0">
+                <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">🔒 Meeting Finalized</span>
+                <span>This meeting is completed. The official Listening Master report is locked in read-only mode.</span>
+            </div>
+            @elseif($canManageListeningMaster)
+            <div class="bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/60 dark:border-purple-900/40 rounded-2xl p-3 text-xs text-purple-900 dark:text-purple-300 flex items-center justify-between gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse inline-block"></span>
+                    <span class="font-bold">Listening Master Active</span>
+                    <span class="text-purple-700 dark:text-purple-400">&bull; Questions and observations will be included in the meeting report and PDF.</span>
+                </div>
+                <span class="text-[11px] font-medium text-purple-600 dark:text-purple-400">Click &quot;Save Report&quot; when finished.</span>
+            </div>
+            @else
+            <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2 flex-shrink-0">
+                <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">View-Only Mode</span>
+                <span>Only the assigned Listening Master (<strong>{{ $assignedListeningMasterName }}</strong>), meeting facilitators, or club officers can edit this report.</span>
+            </div>
+            @endif
+
+            {{-- Body Content --}}
+            <div class="overflow-y-auto flex-1 pr-1 space-y-4">
+                @if($canManageListeningMaster && !$isMeetingLocked)
+                <div>
+                    <x-rich-text-editor
+                        wire:model="listeningMasterReport"
+                        placeholder="Type listening quiz questions, observations, and attendee responses here…"
+                    />
+                </div>
+                @else
+                <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50 min-h-[220px]">
+                    @if($meeting->listening_master_report)
+                        <div class="rich-text-content text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                            {!! $meeting->listening_master_report !!}
+                        </div>
+                    @else
+                        <div class="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+                            <svg class="w-10 h-10 mb-2 opacity-40 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            </svg>
+                            <p class="text-sm font-semibold">No Listening Master report recorded yet.</p>
+                            <p class="text-xs text-slate-400 mt-1">The report will appear here once recorded by the role player.</p>
+                        </div>
+                    @endif
+                </div>
+                @endif
+            </div>
+
+            {{-- Footer --}}
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
+                <span class="text-[11px] text-slate-400">💡 Listening Master tests members' active listening skills throughout the meeting.</span>
+                <button type="button" @click="showListeningMasterModal = false"
+                        class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                    Close
+                </button>
+            </div>
         </div>
     </div>
 
