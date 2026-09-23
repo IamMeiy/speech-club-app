@@ -262,7 +262,7 @@
                 <div x-show="activeMode === 'outline'" x-cloak class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <input wire:model="speechTopic" type="text" placeholder="Speech Topic (e.g. Habits)" class="text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 outline-none focus:ring-1 focus:ring-primary-500"/>
                     <input wire:model="speechProject" type="text" placeholder="Project (e.g. Ice Breaker)" class="text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 outline-none focus:ring-1 focus:ring-primary-500"/>
-                    <button wire:click="generateSpeechOutline" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs">
+                    <button wire:click="generateSpeechOutline" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition inline-flex items-center justify-center gap-1 shadow-xs">
                         <svg wire:loading wire:target="generateSpeechOutline" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         <span wire:loading.remove wire:target="generateSpeechOutline">🎤 Outline</span>
                         <span wire:loading wire:target="generateSpeechOutline">Generating...</span>
@@ -272,7 +272,7 @@
                 {{-- Table Topics preset --}}
                 <div x-show="activeMode === 'tabletopics'" x-cloak class="flex gap-2">
                     <input wire:model="tableTopicsTheme" type="text" placeholder="Theme (optional, e.g. Resilience)" class="flex-1 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 outline-none focus:ring-1 focus:ring-primary-500"/>
-                    <button wire:click="generateTableTopics" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-xs">
+                    <button wire:click="generateTableTopics" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition inline-flex items-center gap-1 shadow-xs">
                         <svg wire:loading wire:target="generateTableTopics" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         <span wire:loading.remove wire:target="generateTableTopics">🎯 Generate</span>
                         <span wire:loading wire:target="generateTableTopics">Generating...</span>
@@ -286,7 +286,7 @@
                             <option value="{{ $r }}">{{ $r }}</option>
                         @endforeach
                     </select>
-                    <button wire:click="generateRoleScript" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-xs">
+                    <button wire:click="generateRoleScript" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition inline-flex items-center gap-1 shadow-xs">
                         <svg wire:loading wire:target="generateRoleScript" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         <span wire:loading.remove wire:target="generateRoleScript">📋 Script</span>
                         <span wire:loading wire:target="generateRoleScript">Generating...</span>
@@ -301,7 +301,7 @@
                             <option value="{{ $m['id'] }}">{{ $m['name'] }}</option>
                         @endforeach
                     </select>
-                    <button wire:click="generateCoaching" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-xs">
+                    <button wire:click="generateCoaching" wire:loading.attr="disabled" class="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition inline-flex items-center gap-1 shadow-xs">
                         <svg wire:loading wire:target="generateCoaching" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         <span wire:loading.remove wire:target="generateCoaching">✨ Coaching</span>
                         <span wire:loading wire:target="generateCoaching">Analysing...</span>
@@ -464,7 +464,7 @@
                         <button
                             type="submit"
                             wire:loading.attr="disabled"
-                            class="flex-shrink-0 w-8 h-8 rounded-xl bg-primary-600 hover:bg-primary-700 text-white flex items-center justify-center shadow-xs transition active:scale-95 disabled:opacity-50"
+                            class="flex-shrink-0 w-8 h-8 rounded-xl bg-primary-600 hover:bg-primary-700 text-white inline-flex items-center justify-center shadow-xs transition active:scale-95 disabled:opacity-50"
                             title="Send Message (Enter)"
                         >
                             <svg wire:loading.remove wire:target="sendMessage" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

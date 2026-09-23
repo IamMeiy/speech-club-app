@@ -74,10 +74,10 @@
                     type="submit"
                     wire:loading.attr="disabled"
                     class="w-full py-3 px-4 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl shadow-lg shadow-primary-500/25 transition-all duration-200 text-sm
-                           disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                           disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer inline-flex items-center justify-center gap-2"
                 >
                     <span wire:loading.remove>Sign in</span>
-                    <span wire:loading class="flex items-center justify-center gap-2">
+                    <span wire:loading.inline-flex class="items-center justify-center gap-2">
                         <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>

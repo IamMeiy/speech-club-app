@@ -149,7 +149,7 @@
                     <button
                         wire:click="generateRoleScript"
                         wire:loading.attr="disabled"
-                        class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
+                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
                     >
                         <svg wire:loading wire:target="generateRoleScript" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         <span wire:loading.remove wire:target="generateRoleScript">📋 Generate {{ $selectedRole }} Script</span>
@@ -162,7 +162,7 @@
                     <button
                         wire:click="generateMemberCoaching"
                         wire:loading.attr="disabled"
-                        class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
+                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
                     >
                         <svg wire:loading wire:target="generateMemberCoaching" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                         <span wire:loading.remove wire:target="generateMemberCoaching">✨ {{ $contextName ? "Generate Coaching for $contextName" : 'Generate Coaching Report' }}</span>
@@ -183,7 +183,7 @@
                         <button
                             wire:click="generateTableTopics"
                             wire:loading.attr="disabled"
-                            class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
                         >
                             <svg wire:loading wire:target="generateTableTopics" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                             <span wire:loading.remove wire:target="generateTableTopics">Generate</span>
@@ -205,7 +205,7 @@
                         <button
                             wire:click="generateSpeechOutline"
                             wire:loading.attr="disabled"
-                            class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
                         >
                             <svg wire:loading wire:target="generateSpeechOutline" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                             <span wire:loading.remove wire:target="generateSpeechOutline">Generate</span>
@@ -227,7 +227,7 @@
                         <button
                             wire:click="sendPrompt"
                             wire:loading.attr="disabled"
-                            class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-md shadow-primary-600/25 transition-all disabled:opacity-60"
                         >
                             <svg wire:loading wire:target="sendPrompt" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                             <svg wire:loading.remove wire:target="sendPrompt" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>

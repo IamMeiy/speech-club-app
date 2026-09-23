@@ -159,9 +159,9 @@
 
                 <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
                     <button type="submit" wire:loading.attr="disabled"
-                            class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-primary-500/20 transition-all disabled:opacity-60">
+                            class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-primary-500/20 transition-all disabled:opacity-60">
                         <span wire:loading.remove wire:target="saveProfile">Update Profile</span>
-                        <span wire:loading wire:target="saveProfile" class="inline-flex items-center gap-1.5">
+                        <span wire:loading.inline-flex wire:target="saveProfile" class="items-center gap-1.5">
                             <svg class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                             Saving…
                         </span>
@@ -198,9 +198,9 @@
 
                 <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
                     <button type="submit" wire:loading.attr="disabled"
-                            class="px-6 py-2.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-sm font-semibold rounded-xl shadow-sm transition-all disabled:opacity-60">
+                            class="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-sm font-semibold rounded-xl shadow-sm transition-all disabled:opacity-60">
                         <span wire:loading.remove wire:target="changePassword">Change Password</span>
-                        <span wire:loading wire:target="changePassword" class="inline-flex items-center gap-1.5">
+                        <span wire:loading.inline-flex wire:target="changePassword" class="items-center gap-1.5">
                             <svg class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                             Updating…
                         </span>
