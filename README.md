@@ -1,58 +1,236 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🎙️ Speech Club Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A simple, modern web app to run speech clubs, inspired by Toastmasters. It helps clubs schedule meetings, assign roles, run live meetings with clicker tools, track member speeches, and get AI speaking tips.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🌟 What This App Does
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 🏢 Manage Multiple Clubs
+- **Run several clubs**: Set up different clubs in your company or community (like Chola, Chera, Pandiya, Pallava).
+- **Club switcher**: If you are an admin, switch between clubs easily from the top bar.
+- **Club privacy**: Regular members only see information from their own club.
+- **Club officers**: Assign club leadership roles (President, VP Education, Secretary, etc.) for each club.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 📅 Plan and Run Meetings
+- **Schedule meetings**: Add meeting numbers, dates, times, location, meeting themes, and a Word of the Day.
+- **Meeting statuses**: Move meetings from `Draft` ➔ `Scheduled` ➔ `Completed` (or `Cancelled`).
+- **Meeting lock**: Once a meeting is marked `Completed`, the data is locked so nobody can change it by accident.
+- **Meeting roles**: Assign functionaries like TMOD (host), Timer, Grammarian, Ah-Counter, General Evaluator, and Listening Master.
+- **Volunteer online**: Members can sign up for speech slots or Table Topics directly from the meeting page, or cancel if they cannot make it.
+- **Speech projects**: Select speech projects from the built-in catalog to automatically fill in the project goals and time limits.
 
-## Learning Laravel
+### ⚡ Live Meeting Tools (During the Meeting)
+- **Live Ah-Counter**: Click `+` and `-` buttons live to count filler words (`ah`, `um`, `er`, `so`, `like`, `you know`, repeated words) for each speaker.
+- **Live Grammarian**: Count how many times each speaker uses the Word of the Day, and jot down good phrases and grammar mistakes.
+- **Live Timer**: Record speech times for speakers and evaluators. The system shows if they qualified within Green, Amber, and Red time limits.
+- **Speech Evaluations**: Evaluators can type written feedback (what went well, recommendations for improvement).
+- **Listening Master**: Test how well the audience listened by adding questions and notes at the end of the meeting.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 📄 Download PDF Agendas & Reports
+- **Meeting Agenda PDF**: Print a neat schedule with timings, speaker names, and role players.
+- **Meeting Report PDF**: Download a full summary after the meeting, showing attendance, timer results, speech evaluations, and filler word counts.
+- **7 Color Themes**: Pick your favorite color for the PDF (`indigo`, `emerald`, `blue`, `purple`, `rose`, `amber`, `cyan`).
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 📈 Member Progress & Profiles
+- **Role Tracker (`/my-progress`)**: See which meeting roles you have completed and which roles you still need to try.
+- **Speeches & Badges**: Track how many speeches you have delivered and unlock milestone badges.
+- **Member Profile (`/members/{user}`)**: A full view of a member's speeches, evaluations given/received, attendance history, and AI coaching.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### 🤖 Built-in AI Assistant
+- **Works offline**: Uses a built-in PHP rule engine by default — no API keys or setup required.
+- **Local Ollama support (optional)**: Connect to a local model (like Gemma 4) for smarter answers.
+- **5 Useful Modes**:
+  1. **General Chat**: Ask questions about public speaking and club rules.
+  2. **Speech Outlines**: Turn an idea or topic into a ready-to-use speech outline.
+  3. **Table Topics**: Get fresh topics and questions for impromptu speaking sessions.
+  4. **Role Scripts**: Generate what to say when introducing roles like Timer, Ah-Counter, or TMOD.
+  5. **Member Coaching**: Get personalized advice based on a member's past speeches and filler words.
+- **Quick AI Modal**: Click the AI button from any page for quick help.
 
-## Agentic Development
+### 🔐 User Roles & Permissions
+- **Global Roles**: Super Admin, Admin, Global Viewer.
+- **Club Roles**: President, VP Education, VP Membership, VP Public Relations, Secretary, Treasurer, Sergeant at Arms, Member.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+---
 
+## 🛠️ Tech Stack
+
+| Part | What We Use |
+|---|---|
+| **Backend** | [Laravel 13](https://laravel.com), [PHP 8.3+](https://www.php.net) |
+| **Frontend** | [Livewire 4](https://livewire.laravel.com), [Alpine.js](https://alpinejs.dev), [Tailwind CSS v4](https://tailwindcss.com) |
+| **Database** | SQLite (default for development) or MySQL |
+| **Permissions** | [Spatie Laravel-Permission](https://spatie.be/docs/laravel-permission) |
+| **PDFs** | [Barryvdh Laravel-DomPDF](https://github.com/barryvdh/laravel-dompdf) |
+| **AI Assistant** | [Ollama](https://ollama.ai) (optional) + built-in offline PHP engine |
+| **Assets** | [Vite 7](https://vitejs.dev) |
+
+---
+
+## 📋 Requirements
+
+Before you start, make sure you have:
+- **PHP**: `8.3` or higher
+- **Composer**: `2.x`
+- **Node.js**: `20.x` or higher & **npm**
+- **SQLite** (comes with PHP) or MySQL
+- *(Optional)* **Ollama**: Only if you want to run AI models locally.
+
+---
+
+## 🚀 How to Set Up and Run
+
+### 1. Clone the Project
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone https://github.com/IamMeiy/speech-club-app.git
+cd speech-club-app
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Quick Setup (Option A)
+Run the setup command to install everything, create your key, and prepare the database:
+```bash
+composer run setup
+php artisan db:seed
+```
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. Manual Setup (Option B)
 
-## Code of Conduct
+If you prefer running steps one by one:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+#### Step 1: Install packages
+```bash
+composer install
+npm install
+```
 
-## Security Vulnerabilities
+#### Step 2: Set up environment
+```bash
+# On Linux, macOS, or PowerShell:
+cp .env.example .env
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# On Windows Command Prompt (CMD):
+copy .env.example .env
 
-## License
+# Generate app key:
+php artisan key:generate
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+#### Step 3: Set up database and demo data
+```bash
+# Create SQLite file if it does not exist:
+php -r "file_exists('database/database.sqlite') || touch('database/database.sqlite');"
+
+# Run migrations and seed sample clubs, users, and meetings:
+php artisan migrate --seed
+```
+
+#### Step 4: Start the server
+Run everything with one command:
+```bash
+composer run dev
+```
+
+Or run them in two separate terminal windows:
+```bash
+# Terminal 1:
+php artisan serve
+
+# Terminal 2:
+npm run dev
+```
+
+Open your browser and visit: **`http://localhost:8000`**
+
+---
+
+## 👥 Demo Logins
+
+The database comes pre-loaded with demo users. The password for **all accounts** is: **`password`**
+
+| Email | Role | Club | What They Can Do |
+|---|---|---|---|
+| `superadmin@speechclub.local` | **Super Admin** | All Clubs | Full access to everything |
+| `admin@speechclub.local` | **Admin** | Chola, Chera, Pandiya | Manage multiple clubs |
+| `arun@speechclub.local` | **President** | Chola Club | Manage Chola club and meetings |
+| `kumar@speechclub.local` | **VP Education** | Chola Club | Manage agendas, meetings, and roles |
+| `priya@speechclub.local` | **Secretary** | Chola Club | Take attendance and minutes |
+| `suresh@speechclub.local` | **Member** | Chola Club | Give speeches and take meeting roles |
+| `meena@speechclub.local` | **Member** | Chola Club | Give speeches and take meeting roles |
+| `ravi@speechclub.local` | **President** | Chera Club | Manage Chera club |
+| `karthik@speechclub.local` | **Member** | Chera Club | Member in Chera club |
+
+---
+
+## 🤖 How to Use the AI Assistant
+
+### Default (Offline, Zero Setup)
+You do not need to install anything. The app has a built-in rule engine that writes speech outlines, Table Topics, and role scripts out of the box.
+
+### Optional: Use Local Ollama
+To use a real AI model on your machine:
+1. Install [Ollama](https://ollama.ai).
+2. Download the model:
+   ```bash
+   ollama pull gemma4:e4b
+   ```
+3. Make sure Ollama is running in the background.
+4. Check your `.env` file has:
+   ```env
+   AI_ASSISTANT_ENABLED=true
+   OLLAMA_URL=http://127.0.0.1:11434
+   OLLAMA_MODEL=gemma4:e4b
+   OLLAMA_TIMEOUT=180
+   ```
+
+---
+
+## 🧪 Testing
+
+Run the automated test suite anytime:
+```bash
+php artisan test
+```
+
+All 67 tests will run, testing permissions, club switching, meetings, live clickers, and PDF reports.
+
+---
+
+## 📁 Project Folders
+
+```text
+speech-club-app/
+├── app/
+│   ├── Livewire/             # Interactive web pages (Meetings, Clubs, AI, Members)
+│   ├── Models/               # Database models (Club, Meeting, User, etc.)
+│   └── Services/             # Core logic (AI assistant, Club access)
+├── database/
+│   ├── migrations/           # Database tables
+│   └── seeders/              # Demo data generator
+├── resources/
+│   ├── css/                  # Styling (Tailwind CSS)
+│   └── views/                # Page layouts and PDF templates
+├── routes/
+│   └── web.php               # Web page URLs
+└── tests/                    # Automated tests
+```
+
+## 👤 Author
+
+Created and maintained by **[Meiy](https://github.com/IamMeiy)**.
+
+---
+
+## 📄 License
+
+This project is open-source under the [MIT license](LICENSE).
+
+---
+
+## ⚖️ Disclaimer
+
+*Toastmasters*, *Toastmaster*, and related trademarks are registered trademarks of **Toastmasters International**. 
+
+This repository and application are an independent, community open-source project. This project is **not affiliated with, endorsed by, sponsored by, or connected to Toastmasters International** in any official capacity. Any reference to Toastmasters or its meeting roles is made strictly for descriptive purposes under fair use.
