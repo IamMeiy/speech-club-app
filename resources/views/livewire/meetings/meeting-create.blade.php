@@ -6,8 +6,10 @@
     projectsList: {{ Js::from($projects->map(fn($p) => [
         'id' => $p->id,
         'name' => $p->name,
+        'badge' => $p->levelBadge(),
         'duration' => $p->formattedTiming(),
-        'speech_type' => $p->track ?: 'Speech Project'
+        'speech_type' => $p->track ?: 'Speech Project',
+        'track' => $p->track ?: 'General',
     ])) }},
     onSelectProject(index, projectId) {
         const p = this.projectsList.find(item => String(item.id) === String(projectId));
@@ -144,8 +146,8 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Meeting Notes & Agenda</label>
-                    <x-rich-text-editor wire:model="notes" placeholder="Additional agenda items, meeting notes, action items, or announcements…" />
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Meeting Agenda & Announcements</label>
+                    <x-rich-text-editor wire:model="notes" placeholder="Planned agenda items, meeting notes, theme details, or announcements for members…" />
                 </div>
             </div>
         </div>
@@ -360,15 +362,85 @@
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Speech Project (Auto-fills timing & track)</label>
-                                <select x-model="speaker.project_id" @change="onSelectProject(index, $event.target.value)"
-                                        class="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium">
-                                    <option value="">— Select Speech Project —</option>
-                                    @foreach($projects as $proj)
-                                        <option value="{{ $proj->id }}">
-                                            [{{ $proj->levelBadge() }}] {{ $proj->name }} ({{ $proj->formattedTiming() }})
-                                        </option>
-                                    @endforeach
-                                </select>
+                                
+                                {{-- Searchable Project Combobox --}}
+                                <div class="relative" x-data="{
+                                    open: false,
+                                    search: '',
+                                    get filtered() {
+                                        if (!this.search.trim()) return projectsList;
+                                        const q = this.search.toLowerCase();
+                                        return projectsList.filter(p => 
+                                            p.name.toLowerCase().includes(q) || 
+                                            (p.track && p.track.toLowerCase().includes(q)) || 
+                                            (p.badge && p.badge.toLowerCase().includes(q)) ||
+                                            (p.duration && p.duration.toLowerCase().includes(q))
+                                        );
+                                    },
+                                    get selectedProject() {
+                                        return projectsList.find(p => String(p.id) === String(speaker.project_id));
+                                    },
+                                    get displayText() {
+                                        const p = this.selectedProject;
+                                        if (!p) return '— Select from Speech Catalog (Searchable) —';
+                                        return `[${p.badge}] ${p.name} (${p.duration})`;
+                                    },
+                                    choose(id) {
+                                        this.open = false;
+                                        this.search = '';
+                                        onSelectProject(index, id);
+                                    }
+                                }" @click.outside="open = false; search = ''">
+                                    <button type="button" @click="open = !open; if(open) $nextTick(() => $refs.searchProjInp?.focus())"
+                                            class="w-full flex items-center justify-between px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-left transition-all">
+                                        <span :class="speaker.project_id ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-400 dark:text-slate-500'" x-text="displayText" class="truncate"></span>
+                                        <div class="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                                            <span x-show="speaker.project_id" @click.stop="choose('')" class="text-slate-400 hover:text-rose-500 p-0.5 rounded-lg transition-colors cursor-pointer" title="Clear selection">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </span>
+                                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                        </div>
+                                    </button>
+                                    <div x-show="open"
+                                         x-cloak
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="opacity-0 scale-95"
+                                         x-transition:enter-end="opacity-100 scale-100"
+                                         x-transition:leave="transition ease-in duration-75"
+                                         x-transition:leave-start="opacity-100 scale-100"
+                                         x-transition:leave-end="opacity-0 scale-95"
+                                         class="absolute z-50 mt-1.5 w-full bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden max-h-72 flex flex-col"
+                                         style="display: none;">
+                                        <div class="p-2.5 border-b border-slate-100 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-900/50">
+                                            <div class="relative">
+                                                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                <input x-ref="searchProjInp" x-model="search" type="text" placeholder="Type to search project, manual, track, timing…"
+                                                       class="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                            </div>
+                                        </div>
+                                        <div class="overflow-y-auto p-1.5 space-y-0.5 max-h-56">
+                                            <button type="button" @click="choose('')"
+                                                    class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors">
+                                                — Custom / None (Clear Selection) —
+                                            </button>
+                                            <template x-for="p in filtered" :key="p.id">
+                                                <button type="button" @click="choose(p.id)"
+                                                        class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors text-left"
+                                                        :class="String(speaker.project_id) === String(p.id) ? 'bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'">
+                                                    <div class="truncate mr-2">
+                                                        <span class="font-semibold text-slate-900 dark:text-white" x-text="p.name"></span>
+                                                        <span class="text-[11px] text-slate-500 dark:text-slate-400 ml-1.5" x-text="'(' + p.badge + ' • ' + p.duration + ')'"></span>
+                                                        <span class="block text-[10px] text-primary-600/80 dark:text-primary-400/80 font-medium" x-text="p.track"></span>
+                                                    </div>
+                                                    <svg x-show="String(speaker.project_id) === String(p.id)" class="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                </button>
+                                            </template>
+                                            <div x-show="filtered.length === 0" class="py-4 text-center text-xs text-slate-400 dark:text-slate-500">
+                                                No matching speech projects
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Speech Type / Track</label>

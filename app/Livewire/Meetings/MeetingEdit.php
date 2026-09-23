@@ -29,6 +29,7 @@ class MeetingEdit extends Component
     public string $venue          = '';
     public string $status         = 'scheduled';
     public string $notes          = '';
+    public string $minutes_of_meeting = '';
     public string $start_time     = '';
     public string $end_time       = '';
     public string $word_of_the_day = '';
@@ -57,6 +58,7 @@ class MeetingEdit extends Component
         $this->venue          = $meeting->venue ?? '';
         $this->status         = $meeting->status;
         $this->notes          = $meeting->notes ?? '';
+        $this->minutes_of_meeting = $meeting->minutes_of_meeting ?? '';
         $this->start_time     = $meeting->start_time ? substr($meeting->start_time, 0, 5) : '';
         $this->end_time       = $meeting->end_time ? substr($meeting->end_time, 0, 5) : '';
         $this->word_of_the_day       = $meeting->word_of_the_day ?? '';
@@ -135,6 +137,7 @@ class MeetingEdit extends Component
             'venue'                 => 'nullable|string|max:255',
             'status'                => 'required|in:draft,scheduled,completed,cancelled',
             'notes'                 => 'nullable|string',
+            'minutes_of_meeting'    => 'nullable|string',
             'start_time'            => 'nullable|date_format:H:i',
             'end_time'              => 'nullable|date_format:H:i',
             'word_of_the_day'       => 'nullable|string|max:100',
@@ -163,6 +166,7 @@ class MeetingEdit extends Component
             'venue'                 => $this->venue ?: null,
             'status'                => $this->status,
             'notes'                 => $this->notes ?: null,
+            'minutes_of_meeting'    => $this->minutes_of_meeting ?: null,
             'start_time'            => $this->start_time ?: null,
             'end_time'              => $this->end_time ?: null,
             'word_of_the_day'       => $this->word_of_the_day ?: null,
@@ -256,7 +260,11 @@ class MeetingEdit extends Component
         $club      = $this->meeting->club;
         $members   = User::inClub($this->meeting->club_id)->active()->orderBy('name')->get(['id', 'name']);
         $roleTypes = MeetingRoleType::active()->get(['id', 'name', 'sort_order']);
-        $projects  = \App\Models\Project::active()->orderBy('level')->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'level', 'min_minutes', 'max_minutes', 'track']);
+        $projects  = \App\Models\Project::active()
+            ->orderBy('sort_order')
+            ->orderBy('level')
+            ->orderBy('name')
+            ->get(['id', 'name', 'level', 'min_minutes', 'max_minutes', 'track', 'default_duration']);
 
         return view('livewire.meetings.meeting-edit', compact('club', 'members', 'roleTypes', 'projects'));
     }

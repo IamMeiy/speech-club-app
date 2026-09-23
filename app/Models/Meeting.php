@@ -21,6 +21,7 @@ class Meeting extends Model
         'venue',
         'status',
         'notes',
+        'minutes_of_meeting',
         'listening_master_report',
         'word_of_the_day',
         'word_part_of_speech',

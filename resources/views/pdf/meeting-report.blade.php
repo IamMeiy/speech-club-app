@@ -754,11 +754,11 @@
     </div>
     @endif
 
-    {{-- Meeting Notes & Takeaways --}}
-    @if($meeting->notes)
+    {{-- Meeting Minutes (Official Record) --}}
+    @if($meeting->minutes_of_meeting)
     <div class="section-container">
-        <div class="section-heading">Meeting Minutes & Secretary Notes</div>
-        <div class="notes-box">{!! $meeting->notes !!}</div>
+        <div class="section-heading">Minutes of Meeting (MoM)</div>
+        <div class="notes-box">{!! $meeting->minutes_of_meeting !!}</div>
     </div>
     @endif
 

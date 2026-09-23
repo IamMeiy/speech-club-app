@@ -345,11 +345,22 @@
     </div>
     @endif
 
-    @if($meeting->notes)
+    {{-- Minutes of Meeting (MoM) --}}
+    @if($meeting->minutes_of_meeting)
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-3">Meeting Notes & Takeaways</h2>
-        <div class="rich-text-content text-slate-600 dark:text-slate-300">
-            {!! $meeting->notes !!}
+        <div class="flex items-center gap-2.5 mb-4">
+            <span class="p-2 rounded-xl bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-900/40">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </span>
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">Minutes of Meeting (MoM)</h2>
+                <p class="text-xs text-slate-400 font-medium">Official proceedings, decisions, and club reports</p>
+            </div>
+        </div>
+        <div class="rich-text-content text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+            {!! $meeting->minutes_of_meeting !!}
         </div>
     </div>
     @endif

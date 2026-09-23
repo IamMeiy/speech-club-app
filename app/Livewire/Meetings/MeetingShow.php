@@ -70,6 +70,9 @@ class MeetingShow extends Component
     // Listening Master Report state
     public ?string $listeningMasterReport = null;
 
+    // Minutes of Meeting state
+    public ?string $minutesOfMeeting = null;
+
     public function mount(Meeting $meeting, ClubAccessService $access): void
     {
         $user = auth()->user();
@@ -80,6 +83,7 @@ class MeetingShow extends Component
 
         $this->meeting = $meeting;
         $this->listeningMasterReport = $meeting->listening_master_report;
+        $this->minutesOfMeeting = $meeting->minutes_of_meeting;
     }
 
     public function downloadAgenda(string $theme = 'indigo')
@@ -116,6 +120,69 @@ class MeetingShow extends Component
     public function isMeetingLocked(): bool
     {
         return in_array($this->meeting->status, ['completed', 'cancelled'], true);
+    }
+
+    /**
+     * Update meeting status directly from the view page.
+     */
+    public function updateStatus(string $newStatus, ?ClubAccessService $access = null): void
+    {
+        $access = $access ?? app(ClubAccessService::class);
+        $user = auth()->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $canUpdate = $user->isSuperAdmin() || 
+            ($access->validateUserBelongsToClub($user->id, $this->meeting->club_id) && $user->can('meetings.update'));
+
+        if (! $canUpdate) {
+            abort(403, 'You do not have permission to change the meeting status.');
+        }
+
+        $validStatuses = array_keys(Meeting::statuses());
+        if (! in_array($newStatus, $validStatuses, true)) {
+            session()->flash('error', 'Invalid meeting status selected.');
+            return;
+        }
+
+        $this->meeting->update(['status' => $newStatus]);
+        $this->meeting->refresh();
+
+        $statusLabel = Meeting::statuses()[$newStatus] ?? ucfirst($newStatus);
+        session()->flash('success', "Meeting status successfully updated to {$statusLabel}.");
+        $this->dispatch('flash', message: "Meeting status successfully updated to {$statusLabel}.", type: 'success');
+    }
+
+    /**
+     * Save Minutes of Meeting directly from the view page.
+     */
+    public function saveMinutesOfMeeting(?string $content = null, ?ClubAccessService $access = null): void
+    {
+        $access = $access ?? app(ClubAccessService::class);
+        $user = auth()->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $canManage = $user->isSuperAdmin() || 
+            ($access->validateUserBelongsToClub($user->id, $this->meeting->club_id) && 
+             ($user->can('meetings.update') || $user->hasRole(['Secretary', 'President', 'VP Education'])));
+
+        if (! $canManage) {
+            abort(403, 'You do not have permission to manage Minutes of Meeting.');
+        }
+
+        $raw = $content !== null ? $content : (string) $this->minutesOfMeeting;
+        $trimmed = trim($raw);
+        $this->meeting->update([
+            'minutes_of_meeting' => $trimmed !== '' ? $trimmed : null,
+        ]);
+        $this->minutesOfMeeting = $this->meeting->minutes_of_meeting;
+
+        session()->flash('success', 'Minutes of Meeting saved successfully.');
+        $this->dispatch('flash', message: 'Minutes of Meeting saved successfully.', type: 'success');
+        $this->dispatch('minutes-of-meeting-saved');
     }
 
     private function validateCanVolunteer(): void
@@ -916,7 +983,7 @@ class MeetingShow extends Component
         $this->dispatch('flash', message: 'Listening Master report saved successfully!', type: 'success');
     }
 
-    public function render()
+    public function render(ClubAccessService $access)
     {
         $meeting = $this->meeting->load([
             'club:id,name,code',
@@ -924,7 +991,7 @@ class MeetingShow extends Component
             'roles.roleType:id,name,slug,sort_order',
             'roles.user:id,name,email',
             'speakers.user:id,name,email',
-            'speakers.projectModel:id,name,track,level,min_minutes,max_minutes',
+            'speakers.projectModel:id,name,track,level,min_minutes,max_minutes,default_duration',
             'speakers.evaluation.evaluator:id,name,email',
             'ttmSpeakers.user:id,name,email',
             'evaluations.speaker.user:id,name,email',
@@ -936,15 +1003,19 @@ class MeetingShow extends Component
         ]);
 
         $allRoleTypes = MeetingRoleType::active()->get(['id', 'name', 'sort_order']);
-        $currentUserId = auth()->id();
+        $currentUser = auth()->user();
+        $currentUserId = $currentUser?->id;
         $canVolunteer = in_array($meeting->status, ['draft', 'scheduled']) &&
-                        (auth()->user()->isSuperAdmin() || auth()->user()->belongsToClub($meeting->club_id));
+                        ($currentUser && ($currentUser->isSuperAdmin() || $currentUser->belongsToClub($meeting->club_id)));
+
+        $canUpdateStatus = $currentUser && ($currentUser->isSuperAdmin() || ($access->validateUserBelongsToClub($currentUser->id, $meeting->club_id) && $currentUser->can('meetings.update')));
+        $canManageMinutes = $currentUser && ($currentUser->isSuperAdmin() || ($access->validateUserBelongsToClub($currentUser->id, $meeting->club_id) && ($currentUser->can('meetings.update') || $currentUser->hasRole(['Secretary', 'President', 'VP Education']))));
 
         $projects = \App\Models\Project::active()
-            ->orderBy('level')
             ->orderBy('sort_order')
+            ->orderBy('level')
             ->orderBy('name')
-            ->get(['id', 'name', 'level', 'min_minutes', 'max_minutes', 'track']);
+            ->get(['id', 'name', 'level', 'min_minutes', 'max_minutes', 'track', 'default_duration']);
 
         $initialAhLogs = [];
         foreach ($meeting->ahCounterLogs as $l) {
@@ -1091,6 +1162,8 @@ class MeetingShow extends Component
             'canManageAhCounter',
             'canManageGrammarian',
             'canManageListeningMaster',
+            'canUpdateStatus',
+            'canManageMinutes',
             'assignedTimerName',
             'assignedAhCounterName',
             'assignedGrammarianName',

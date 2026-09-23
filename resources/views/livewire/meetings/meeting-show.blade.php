@@ -13,7 +13,9 @@
          canManageAhCounter: {{ $canManageAhCounter ? 'true' : 'false' }},
          canManageGrammarian: {{ $canManageGrammarian ? 'true' : 'false' }},
          canManageListeningMaster: {{ $canManageListeningMaster ? 'true' : 'false' }},
+         canManageMinutes: {{ $canManageMinutes ? 'true' : 'false' }},
          showListeningMasterModal: false,
+         showMinutesModal: false,
 
          getAh(userId, type) {
              if (!this.ahCounts[userId]) {
@@ -307,7 +309,8 @@
       }"
       @speaker-signed-up.window="showSpeakerModal = false"
       @ttm-signed-up.window="showTtmModal = false"
-      @keydown.escape.window="if (showListeningMasterModal) { showListeningMasterModal = false; } else if (showTimerSheet) { showTimerSheet = false; } else if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
+      @minutes-of-meeting-saved.window="showMinutesModal = false"
+      @keydown.escape.window="if (showMinutesModal) { showMinutesModal = false; } else if (showListeningMasterModal) { showListeningMasterModal = false; } else if (showTimerSheet) { showTimerSheet = false; } else if (showEvalNotesModal) { showEvalNotesModal = false; } else if (showGrammarModal) { showGrammarModal = false; } else if (showLiveTools) { showLiveTools = false; } else { showSpeakerModal = false; showTtmModal = false; }">
 
     {{-- Header --}}
     <div class="bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-5">
@@ -320,7 +323,80 @@
                 <div>
                     <div class="flex items-center gap-3">
                         <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Meeting #{{ $meeting->meeting_number }}</h1>
+                        @if($canUpdateStatus)
+                        {{-- Interactive Status Dropdown --}}
+                        <div class="relative" x-data="{
+                            openStatus: false,
+                            currentStatus: '{{ $meeting->status }}',
+                            changeStatus(status) {
+                                this.openStatus = false;
+                                if (status === this.currentStatus) return;
+                                
+                                if (status === 'completed') {
+                                    $confirm({
+                                        title: 'Complete & Lock Meeting',
+                                        message: 'Marking this meeting as Completed will finalize speech credits, attendance records, and lock live counter tools. Are you sure?',
+                                        type: 'warning',
+                                        confirmText: 'Mark Completed',
+                                        onConfirm: () => {
+                                            this.currentStatus = 'completed';
+                                            $wire.updateStatus('completed');
+                                        }
+                                    });
+                                } else if (status === 'cancelled') {
+                                    $confirm({
+                                        title: 'Cancel Meeting',
+                                        message: 'Are you sure you want to cancel this meeting? Members will not receive speech credit for cancelled meetings.',
+                                        type: 'danger',
+                                        confirmText: 'Cancel Meeting',
+                                        onConfirm: () => {
+                                            this.currentStatus = 'cancelled';
+                                            $wire.updateStatus('cancelled');
+                                        }
+                                    });
+                                } else {
+                                    this.currentStatus = status;
+                                    $wire.updateStatus(status);
+                                }
+                            }
+                        }" @click.outside="openStatus = false">
+                            <button type="button" @click="openStatus = !openStatus"
+                                    class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full {{ $meeting->statusColor() }} hover:ring-2 hover:ring-primary-500/30 transition-all cursor-pointer shadow-xs"
+                                    title="Click to change status">
+                                <span>{{ ucfirst($meeting->status) }}</span>
+                                <svg class="w-3.5 h-3.5 opacity-70 transition-transform duration-150" :class="openStatus ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            <div x-show="openStatus"
+                                 x-cloak
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95"
+                                 class="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl py-1.5 z-30"
+                                 style="display: none;">
+                                <div class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Change Status</div>
+                                @foreach(['draft' => 'Draft', 'scheduled' => 'Scheduled', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $stKey => $stLabel)
+                                    <button type="button" @click="changeStatus('{{ $stKey }}')"
+                                            class="w-full flex items-center justify-between px-3 py-1.5 text-xs font-medium transition-colors text-left"
+                                            :class="currentStatus === '{{ $stKey }}' ? 'bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60'">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full {{ $stKey === 'completed' ? 'bg-emerald-500' : ($stKey === 'scheduled' ? 'bg-blue-500' : ($stKey === 'cancelled' ? 'bg-rose-500' : 'bg-slate-400')) }}"></span>
+                                            <span>{{ $stLabel }}</span>
+                                        </div>
+                                        <template x-if="currentStatus === '{{ $stKey }}'">
+                                            <svg class="w-3.5 h-3.5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        </template>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                        @else
                         <span class="text-xs font-semibold px-3 py-1 rounded-full {{ $meeting->statusColor() }}">{{ ucfirst($meeting->status) }}</span>
+                        @endif
                         @if($isMeetingLocked)
                             <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                 <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
@@ -362,70 +438,74 @@
         </div>
 
         {{-- Bottom Action Strip: Tools & Outputs --}}
-        <div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             {{-- Left: Session Facilitation Tools --}}
             <div class="flex flex-wrap items-center gap-2">
-                <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1 flex items-center gap-1.5">
+                <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1 flex items-center gap-1.5 flex-shrink-0">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     Session Tools:
                 </span>
 
-                {{-- Live Facilitator Tools Button --}}
-                <button @click="showTimerSheet = false; showLiveTools = true; activeTab = 'ah_counter'" type="button"
-                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
-                    <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
-                    </svg>
-                    <span>Live Counter Tools</span>
-                </button>
+                <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    {{-- Live Facilitator Tools Button --}}
+                    <button @click="showTimerSheet = false; showListeningMasterModal = false; showLiveTools = true; activeTab = 'ah_counter'" type="button"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/50 text-xs font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                        <svg class="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                        </svg>
+                        <span>Live Counters</span>
+                    </button>
 
-                {{-- Standalone Timer Sheet Button --}}
-                <button @click="showLiveTools = false; showListeningMasterModal = false; showTimerSheet = true" type="button"
-                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
-                    <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Timer Sheet</span>
-                </button>
+                    {{-- Standalone Timer Sheet Button --}}
+                    <button @click="showLiveTools = false; showListeningMasterModal = false; showTimerSheet = true" type="button"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-700/50 text-xs font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                        <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Timer Sheet</span>
+                    </button>
 
-                {{-- Listening Master Report Button --}}
-                <button @click="showLiveTools = false; showTimerSheet = false; showListeningMasterModal = true" type="button"
-                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-300/60 dark:border-purple-700/50 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
-                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    </svg>
-                    <span>Listening Master</span>
-                </button>
+                    {{-- Listening Master Report Button --}}
+                    <button @click="showLiveTools = false; showTimerSheet = false; showListeningMasterModal = true" type="button"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-300/60 dark:border-purple-700/50 text-xs font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                        <svg class="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                        <span>Listening Master</span>
+                    </button>
+                </div>
             </div>
 
             {{-- Right: Meeting Outputs & Reports --}}
             <div class="flex flex-wrap items-center gap-2">
-                <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1">Outputs:</span>
+                <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1 flex-shrink-0">Outputs:</span>
 
-                {{-- Agenda PDF Download --}}
-                <button x-on:click="$wire.downloadAgenda(currentTheme)" wire:loading.attr="disabled"
-                        class="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
-                    <svg wire:loading.remove wire:target="downloadAgenda" class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <svg wire:loading wire:target="downloadAgenda" class="w-4 h-4 animate-spin text-rose-500" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    <span wire:loading.remove wire:target="downloadAgenda">Agenda PDF</span>
-                    <span wire:loading wire:target="downloadAgenda">Generating…</span>
-                </button>
+                <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    {{-- Agenda PDF Download --}}
+                    <button x-on:click="$wire.downloadAgenda(currentTheme)" wire:loading.attr="disabled"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                        <svg wire:loading.remove wire:target="downloadAgenda" class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <svg wire:loading wire:target="downloadAgenda" class="w-4 h-4 animate-spin text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <span wire:loading.remove wire:target="downloadAgenda">Agenda PDF</span>
+                        <span wire:loading wire:target="downloadAgenda">Generating…</span>
+                    </button>
 
-                {{-- Meeting Report --}}
-                @can('reports.view')
-                <a href="{{ route('meetings.report', $meeting) }}"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
-                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>Report</span>
-                </a>
-                @endcan
+                    {{-- Meeting Report --}}
+                    @can('reports.view')
+                    <a href="{{ route('meetings.report', $meeting) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold rounded-2xl transition-all shadow-xs active:scale-[0.98]">
+                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Meeting Report</span>
+                    </a>
+                    @endcan
+                </div>
             </div>
         </div>
     </div>
@@ -499,7 +579,7 @@
         </div>
         @if($meeting->notes)
         <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-            <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Meeting Notes & Agenda</p>
+            <p class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Meeting Agenda & Announcements</p>
             <div class="rich-text-content text-slate-600 dark:text-slate-300">
                 {!! $meeting->notes !!}
             </div>
@@ -507,6 +587,58 @@
         @endif
     </div>
     @endif
+
+    {{-- ================================================================ --}}
+    {{-- Minutes of Meeting (MoM) Card --}}
+    {{-- ================================================================ --}}
+    <div id="minutes-of-meeting" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 transition-colors">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-2xl bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">Minutes of Meeting (MoM)</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Official record of proceedings, club business, motions, and executive reports.</p>
+                </div>
+            </div>
+
+            @if($canManageMinutes)
+            <button @click="showMinutesModal = true" type="button"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary-50 hover:bg-primary-100 dark:bg-primary-950/60 dark:hover:bg-primary-900/60 text-primary-700 dark:text-primary-300 border border-primary-200/70 dark:border-primary-800/60 rounded-xl text-xs font-semibold transition-all active:scale-95 self-start sm:self-auto">
+                <svg class="w-3.5 h-3.5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <span>{{ $meeting->minutes_of_meeting ? 'Edit Minutes' : '+ Add Minutes' }}</span>
+            </button>
+            @endif
+        </div>
+
+        <div class="mt-5">
+            @if($meeting->minutes_of_meeting)
+                <div class="rich-text-content text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {!! $meeting->minutes_of_meeting !!}
+                </div>
+            @else
+                <div class="py-8 text-center flex flex-col items-center justify-center">
+                    <svg class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p class="text-sm font-semibold text-slate-500 dark:text-slate-400">No Minutes of Meeting recorded yet</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">The club secretary or meeting officers can document proceedings here.</p>
+                    @if($canManageMinutes)
+                    <button @click="showMinutesModal = true" type="button"
+                            class="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Add Minutes of Meeting</span>
+                    </button>
+                    @endif
+                </div>
+            @endif
+        </div>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -821,74 +953,62 @@
     <div x-show="showSpeakerModal"
          x-cloak
          x-data="{
+             projectsList: {{ Js::from($projects->map(fn($p) => [
+                 'id' => $p->id,
+                 'name' => $p->name,
+                 'badge' => $p->levelBadge(),
+                 'track' => $p->track ?: '',
+                 'duration' => $p->formattedTiming(),
+                 'speech_type' => $p->track ?: 'Speech Project'
+             ])) }},
+             openProj: false,
+             searchProj: '',
              isCatalogProject: false,
-             onProjectSelect(val) {
-                 const sel = $refs.speakerProjectSelect;
-                 const opt = sel ? sel.options[sel.selectedIndex] : null;
-                 if (val && opt && opt.dataset.name) {
+             get filteredProjects() {
+                 if (!this.searchProj.trim()) return this.projectsList;
+                 const q = this.searchProj.toLowerCase();
+                 return this.projectsList.filter(p =>
+                     p.name.toLowerCase().includes(q) ||
+                     (p.track && p.track.toLowerCase().includes(q)) ||
+                     (p.badge && p.badge.toLowerCase().includes(q)) ||
+                     (p.duration && p.duration.toLowerCase().includes(q))
+                 );
+             },
+             get selectedProject() {
+                 return this.projectsList.find(p => String(p.id) === String($wire.speakerProjectId));
+             },
+             get displayText() {
+                 const p = this.selectedProject;
+                 if (!p) return '— Select from Speech Catalog (Searchable) —';
+                 return `[${p.badge}] ${p.name} (${p.duration})`;
+             },
+             choose(id) {
+                 this.openProj = false;
+                 this.searchProj = '';
+                 const p = this.projectsList.find(item => String(item.id) === String(id));
+                 if (p) {
                      this.isCatalogProject = true;
-                     const name = opt.dataset.name;
-                     const duration = opt.dataset.duration || '5-7 mins';
-                     const track = opt.dataset.track || 'Speech Project';
-
-                     if ($refs.speakerProjectInput) {
-                         $refs.speakerProjectInput.value = name;
-                         $refs.speakerProjectInput.dispatchEvent(new Event('input'));
-                     }
-                     if ($refs.speakerDurationInput) {
-                         $refs.speakerDurationInput.value = duration;
-                         $refs.speakerDurationInput.dispatchEvent(new Event('input'));
-                     }
-                     if ($refs.speakerSpeechTypeInput) {
-                         $refs.speakerSpeechTypeInput.value = track;
-                         $refs.speakerSpeechTypeInput.dispatchEvent(new Event('input'));
-                     }
-
-                     if (typeof $wire !== 'undefined') {
-                         $wire.set('speakerProjectId', parseInt(val), false);
-                         $wire.set('speakerProject', name, false);
-                         $wire.set('speakerDuration', duration, false);
-                         $wire.set('speakerSpeechType', track, false);
-                     }
+                     $wire.set('speakerProjectId', p.id);
+                     $wire.set('speakerProject', p.name);
+                     $wire.set('speakerDuration', p.duration);
+                     $wire.set('speakerSpeechType', p.speech_type);
                  } else {
                      this.isCatalogProject = false;
-
-                     if ($refs.speakerProjectInput) {
-                         $refs.speakerProjectInput.value = '';
-                         $refs.speakerProjectInput.dispatchEvent(new Event('input'));
-                     }
-                     if ($refs.speakerDurationInput) {
-                         $refs.speakerDurationInput.value = '5-7 mins';
-                         $refs.speakerDurationInput.dispatchEvent(new Event('input'));
-                     }
-                     if ($refs.speakerSpeechTypeInput) {
-                         $refs.speakerSpeechTypeInput.value = 'Speech Project';
-                         $refs.speakerSpeechTypeInput.dispatchEvent(new Event('input'));
-                     }
-
-                     if (typeof $wire !== 'undefined') {
-                         $wire.set('speakerProjectId', null, false);
-                         $wire.set('speakerProject', '', false);
-                         $wire.set('speakerDuration', '5-7 mins', false);
-                         $wire.set('speakerSpeechType', 'Speech Project', false);
-                     }
+                     $wire.set('speakerProjectId', null);
+                     $wire.set('speakerProject', '');
+                     $wire.set('speakerDuration', '5-7 mins');
+                     $wire.set('speakerSpeechType', 'Speech Project');
                  }
              },
              resetSpeakerForm() {
                  this.isCatalogProject = false;
-                 if ($refs.speakerProjectSelect) $refs.speakerProjectSelect.value = '';
-                 if ($refs.speakerProjectInput) {
-                     $refs.speakerProjectInput.value = '';
-                     $refs.speakerProjectInput.dispatchEvent(new Event('input'));
-                 }
-                 if ($refs.speakerDurationInput) {
-                     $refs.speakerDurationInput.value = '5-7 mins';
-                     $refs.speakerDurationInput.dispatchEvent(new Event('input'));
-                 }
-                 if ($refs.speakerSpeechTypeInput) {
-                     $refs.speakerSpeechTypeInput.value = 'Speech Project';
-                     $refs.speakerSpeechTypeInput.dispatchEvent(new Event('input'));
-                 }
+                 this.openProj = false;
+                 this.searchProj = '';
+                 $wire.set('speakerProjectId', null);
+                 $wire.set('speakerProject', '');
+                 $wire.set('speakerDuration', '5-7 mins');
+                 $wire.set('speakerSpeechType', 'Speech Project');
+                 $wire.set('speakerTopic', '');
              }
          }"
          @speaker-signed-up.window="resetSpeakerForm(); showSpeakerModal = false"
@@ -916,23 +1036,60 @@
             </div>
 
             <form wire:submit="signUpAsSpeaker" class="space-y-4">
-                {{-- Project Selector --}}
+                {{-- Searchable Project Selector --}}
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Speech Project</label>
-                    <select wire:model="speakerProjectId"
-                            x-ref="speakerProjectSelect"
-                            @change="onProjectSelect($event.target.value)"
-                            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium">
-                        <option value="">— Select from Speech Catalog (Auto-fills timing & track) —</option>
-                        @foreach($projects as $proj)
-                            <option value="{{ $proj->id }}"
-                                    data-name="{{ $proj->name }}"
-                                    data-duration="{{ $proj->formattedTiming() }}"
-                                    data-track="{{ $proj->track ?: 'Speech Project' }}">
-                                [{{ $proj->levelBadge() }}] {{ $proj->name }} ({{ $proj->formattedTiming() }})
-                            </option>
-                        @endforeach
-                    </select>
+                    <div class="relative" @click.outside="openProj = false; searchProj = ''">
+                        <button type="button" @click="openProj = !openProj; if(openProj) $nextTick(() => $refs.searchInp?.focus())"
+                                class="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-left transition-all">
+                            <span :class="$wire.speakerProjectId ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-400 dark:text-slate-500'" x-text="displayText" class="truncate"></span>
+                            <div class="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                                <span x-show="$wire.speakerProjectId" @click.stop="choose('')" class="text-slate-400 hover:text-rose-500 p-0.5 rounded-lg transition-colors cursor-pointer" title="Clear selection">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </span>
+                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="openProj ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
+                        </button>
+                        <div x-show="openProj"
+                             x-cloak
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute z-50 mt-1.5 w-full bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden max-h-72 flex flex-col"
+                             style="display: none;">
+                            <div class="p-2.5 border-b border-slate-100 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-900/50">
+                                <div class="relative">
+                                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    <input x-ref="searchInp" x-model="searchProj" type="text" placeholder="Type to search project, manual, track, timing…"
+                                           class="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                            </div>
+                            <div class="overflow-y-auto p-1.5 space-y-0.5 max-h-56">
+                                <button type="button" @click="choose('')"
+                                        class="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors">
+                                    — Custom / None (Clear Selection) —
+                                </button>
+                                <template x-for="p in filteredProjects" :key="p.id">
+                                    <button type="button" @click="choose(p.id)"
+                                            class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors text-left"
+                                            :class="String($wire.speakerProjectId) === String(p.id) ? 'bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'">
+                                        <div class="truncate mr-2">
+                                            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold mr-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300" x-text="p.badge"></span>
+                                            <span x-text="p.name" class="font-medium"></span>
+                                            <span x-show="p.track" class="text-[11px] text-slate-400 dark:text-slate-500 ml-1" x-text="'· ' + p.track"></span>
+                                        </div>
+                                        <span class="text-[11px] font-semibold text-primary-600 dark:text-primary-400 flex-shrink-0" x-text="p.duration"></span>
+                                    </button>
+                                </template>
+                                <div x-show="filteredProjects.length === 0" class="py-4 text-center text-xs text-slate-400 dark:text-slate-500">
+                                    No matching projects found
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div>
@@ -2195,6 +2352,122 @@
             <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
                 <span class="text-[11px] text-slate-400">💡 Listening Master tests members' active listening skills throughout the meeting.</span>
                 <button type="button" @click="showListeningMasterModal = false"
+                        class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ================================================================ --}}
+    {{-- Minutes of Meeting (MoM) Modal --}}
+    {{-- ================================================================ --}}
+    <div x-show="showMinutesModal"
+         x-cloak
+         @click.self="showMinutesModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 flex flex-col max-h-[90vh]">
+
+            {{-- Modal Header --}}
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="p-2.5 rounded-2xl bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-900/40">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </span>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Minutes of Meeting (MoM)</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Record of official proceedings, executive decisions, guest introductions, and awards.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    @if($canManageMinutes)
+                    <button wire:click="saveMinutesOfMeeting" wire:loading.attr="disabled" type="button"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-primary-600/20 transition-all">
+                        <svg wire:loading.remove wire:target="saveMinutesOfMeeting" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <svg wire:loading wire:target="saveMinutesOfMeeting" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <span wire:loading.remove wire:target="saveMinutesOfMeeting">Save Minutes</span>
+                        <span wire:loading wire:target="saveMinutesOfMeeting">Saving…</span>
+                    </button>
+                    @endif
+
+                    <button @click="showMinutesModal = false" type="button" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Role Context Banner --}}
+            @if($canManageMinutes)
+            <div class="bg-primary-50/70 dark:bg-primary-950/30 border border-primary-200/60 dark:border-primary-900/40 rounded-2xl p-3 text-xs text-primary-900 dark:text-primary-300 flex items-center justify-between gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-primary-500 animate-pulse inline-block"></span>
+                    <span class="font-bold">Minutes Editor</span>
+                    <span class="text-primary-700 dark:text-primary-400">&bull; Changes will be reflected on the meeting view page, meeting report, and PDF.</span>
+                </div>
+                <span class="text-[11px] font-medium text-primary-600 dark:text-primary-400">Click &quot;Save Minutes&quot; when finished.</span>
+            </div>
+            @else
+            <div class="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2 flex-shrink-0">
+                <span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">View-Only Mode</span>
+                <span>Only club officers, secretaries, or meeting administrators can edit these minutes.</span>
+            </div>
+            @endif
+
+            {{-- Body Content --}}
+            <div class="overflow-y-auto flex-1 pr-1 space-y-4">
+                @if($canManageMinutes)
+                <div>
+                    <x-rich-text-editor
+                        wire:model="minutesOfMeeting"
+                        placeholder="Record key meeting proceedings, call to order, officer reports, motions approved, awards, guest remarks…"
+                    />
+                </div>
+                @else
+                <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50 min-h-[220px]">
+                    @if($meeting->minutes_of_meeting)
+                        <div class="rich-text-content text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                            {!! $meeting->minutes_of_meeting !!}
+                        </div>
+                    @else
+                        <div class="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+                            <svg class="w-10 h-10 mb-2 opacity-40 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p class="text-sm font-semibold">No Minutes of Meeting recorded yet.</p>
+                            <p class="text-xs text-slate-400 mt-1">Official meeting minutes will appear here once saved by the Secretary or meeting officer.</p>
+                        </div>
+                    @endif
+                </div>
+                @endif
+            </div>
+
+            {{-- Footer --}}
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
+                <span class="text-[11px] text-slate-400">📄 Minutes are published in the official meeting report and PDF minutes.</span>
+                <button type="button" @click="showMinutesModal = false"
                         class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                     Close
                 </button>
